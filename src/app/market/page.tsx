@@ -62,15 +62,17 @@ function MarketContent() {
     setLoading(false)
   }, [activeGroup, boatType, searchQ])
 
-  // Fetch showcase listings - synced with mobile
+  // Fetch showcase listings - random from all categories
   const fetchShowcase = useCallback(async () => {
     const { data } = await supabase
       .from('listings')
       .select('*')
       .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(showcaseLimit)
-    setShowcaseListings((data as Listing[]) ?? [])
+      .limit(showcaseLimit * 2) // Fetch more to have buffer for shuffling
+
+    // Shuffle the results randomly
+    const shuffled = (data as Listing[])?.sort(() => Math.random() - 0.5) ?? []
+    setShowcaseListings(shuffled.slice(0, showcaseLimit))
   }, [showcaseLimit])
 
   useEffect(() => {
