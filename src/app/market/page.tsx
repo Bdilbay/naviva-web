@@ -47,6 +47,7 @@ function MarketContent() {
   const [loading, setLoading] = useState(true)
   const [searchInput, setSearchInput] = useState(searchQ)
   const [openSection, setOpenSection] = useState<string | null>('satilik')
+  const [showcaseLimit, setShowcaseLimit] = useState(20)
 
   const activeGroup = CATEGORY_GROUPS.find(g => g.key === groupKey)
 
@@ -61,16 +62,16 @@ function MarketContent() {
     setLoading(false)
   }, [activeGroup, boatType, searchQ])
 
-  // Fetch showcase listings (first 6) - synced with mobile
+  // Fetch showcase listings - synced with mobile
   const fetchShowcase = useCallback(async () => {
     const { data } = await supabase
       .from('listings')
       .select('*')
       .eq('status', 'active')
       .order('created_at', { ascending: false })
-      .limit(6)
+      .limit(showcaseLimit)
     setShowcaseListings((data as Listing[]) ?? [])
-  }, [])
+  }, [showcaseLimit])
 
   useEffect(() => {
     fetchListings()
@@ -210,10 +211,27 @@ function MarketContent() {
           {/* Showcase Section - Always visible at top when no filters */}
           {!groupKey && !boatType && !searchQ && showcaseListings.length > 0 && (
             <div className="mb-8">
-              <h2 className="text-slate-300 text-sm font-semibold uppercase tracking-wider mb-4 flex items-center gap-2">
-                <span className="text-orange-400">✨</span> VİTRİN İLANLARI
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-slate-300 text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
+                  <span className="text-orange-400">✨</span> VİTRİN İLANLARI
+                </h2>
+                <div className="flex gap-2">
+                  {[20, 50].map(limit => (
+                    <button
+                      key={limit}
+                      onClick={() => setShowcaseLimit(limit)}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                        showcaseLimit === limit
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
+                      }`}
+                    >
+                      {limit}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {showcaseListings.map(l => (
                   <Link key={l.id} href={`/market/${l.id}`}
                     className="group relative rounded-xl overflow-hidden bg-slate-800/50 border border-slate-700/50 hover:border-orange-500/50 transition-all duration-300">
