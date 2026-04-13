@@ -130,6 +130,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {sidebarOpen && <div className="my-2 h-px bg-slate-700"></div>}
 
           <Link
+            href="/admin/banners"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-300 hover:bg-slate-700/60 hover:text-white transition-colors text-sm"
+          >
+            <span>📺</span>
+            {sidebarOpen && <span className="font-medium">Reklam Alanları</span>}
+          </Link>
+
+          {/* Divider */}
+          {sidebarOpen && <div className="my-2 h-px bg-slate-700"></div>}
+
+          <Link
             href="/admin/stats"
             className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-300 hover:bg-slate-700/60 hover:text-white transition-colors text-sm"
           >

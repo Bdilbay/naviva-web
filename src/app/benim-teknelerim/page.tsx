@@ -88,7 +88,7 @@ export default function MyBoatsPage() {
               <h1 className="text-4xl font-bold text-white">Benim Teknelerim</h1>
             </div>
             <button
-              onClick={() => router.push('/add-boat')}
+              onClick={() => router.push('/benim-teknelerim/yeni')}
               className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
             >
               <Plus size={20} />
@@ -109,7 +109,7 @@ export default function MyBoatsPage() {
             <h3 className="text-xl font-semibold text-slate-300 mb-2">Henüz tekne eklenmedi</h3>
             <p className="text-slate-400 mb-6">Eğlenceli deniz deneyimleri için ilk teknenizi ekleyin</p>
             <button
-              onClick={() => router.push('/add-boat')}
+              onClick={() => router.push('/benim-teknelerim/yeni')}
               className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
             >
               <Plus size={20} />
@@ -141,7 +141,7 @@ export default function MyBoatsPage() {
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => router.push(`/boats/${boat.id}`)}
+                    onClick={() => router.push(`/benim-teknelerim/${boat.id}`)}
                     className="flex-1 px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-200 rounded-lg font-medium transition-colors text-sm"
                   >
                     Detay

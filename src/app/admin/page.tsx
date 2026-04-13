@@ -198,7 +198,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">Web Platformu</h2>
-                <p className="text-slate-400 text-sm">İlanlar ve pazar yönetimi</p>
+                <p className="text-slate-400 text-sm">İlanlar, pazar ve reklam yönetimi</p>
               </div>
             </div>
 
@@ -215,6 +215,13 @@ export default function AdminDashboard() {
                 className="flex items-center justify-between p-4 rounded-lg border border-slate-700 hover:border-orange-500/50 hover:bg-slate-700/50 transition-all group"
               >
                 <span className="text-slate-300 group-hover:text-white">Usta Profilleri</span>
+                <span className="text-slate-500 group-hover:text-slate-300">→</span>
+              </Link>
+              <Link
+                href="/admin/banners"
+                className="flex items-center justify-between p-4 rounded-lg border border-slate-700 hover:border-orange-500/50 hover:bg-slate-700/50 transition-all group"
+              >
+                <span className="text-slate-300 group-hover:text-white">Reklam Alanları</span>
                 <span className="text-slate-500 group-hover:text-slate-300">→</span>
               </Link>
               <Link

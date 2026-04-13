@@ -71,40 +71,22 @@ export default function Navbar() {
             <Image src="/naviva-logo.png" alt="Naviva" width={110} height={36} className="h-9 w-auto" priority />
           </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-8">
-            {navLinks.map(link => (
-              <Link key={link.href} href={link.href}
-                className="text-slate-300 hover:text-white text-sm font-medium transition-colors">
-                {link.label}
-              </Link>
-            ))}
+          {/* Desktop nav - placeholder that stays empty for spacing */}
+          <nav className="hidden md:flex items-center gap-8 flex-1">
           </nav>
 
           {/* Auth section (desktop) */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-4">
             {user ? (
               <>
-                <Link href="/favorilerim"
-                  className="flex items-center gap-1.5 text-slate-300 hover:text-red-400 text-sm font-medium px-3 py-1.5 transition-colors">
-                  <Heart className="w-4 h-4" />
-                  Favorilerim
-                </Link>
+                {/* Messages link - left side of username */}
                 <Link href="/mesajlar"
                   className="flex items-center gap-1.5 text-slate-300 hover:text-pink-400 text-sm font-medium px-3 py-1.5 transition-colors">
                   <MessageSquare className="w-4 h-4" />
                   Mesajlar
                 </Link>
-                <Link href="/benim-teknelerim"
-                  className="flex items-center gap-1.5 text-slate-300 hover:text-blue-400 text-sm font-medium px-3 py-1.5 transition-colors">
-                  <Ship className="w-4 h-4" />
-                  Teknelerim
-                </Link>
-                <Link href="/benim-ilanlarim"
-                  className="flex items-center gap-1.5 text-slate-300 hover:text-orange-400 text-sm font-medium px-3 py-1.5 transition-colors">
-                  İlanlarım
-                </Link>
-                <div className="w-px h-4 bg-slate-700" />
+
+                {/* User dropdown */}
                 <div className="relative group">
                   <button
                     className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm font-medium px-3 py-1.5 transition-colors">
@@ -134,6 +116,23 @@ export default function Navbar() {
                     </button>
                   </div>
                 </div>
+
+                {/* Other menus for normal users - aligned to right */}
+                <div className="w-px h-4 bg-slate-700" />
+                <Link href="/favorilerim"
+                  className="flex items-center gap-1.5 text-slate-300 hover:text-red-400 text-sm font-medium px-3 py-1.5 transition-colors">
+                  <Heart className="w-4 h-4" />
+                  Favorilerim
+                </Link>
+                <Link href="/benim-teknelerim"
+                  className="flex items-center gap-1.5 text-slate-300 hover:text-blue-400 text-sm font-medium px-3 py-1.5 transition-colors">
+                  <Ship className="w-4 h-4" />
+                  Teknelerim
+                </Link>
+                <Link href="/benim-ilanlarim"
+                  className="flex items-center gap-1.5 text-slate-300 hover:text-orange-400 text-sm font-medium px-3 py-1.5 transition-colors">
+                  İlanlarım
+                </Link>
               </>
             ) : (
               <>
