@@ -76,17 +76,35 @@ export default function Navbar() {
           </nav>
 
           {/* Auth section (desktop) */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
             {user ? (
               <>
-                {/* Messages link - left side of username */}
+                {/* Favorites, Boats, Listings */}
+                <Link href="/favorilerim"
+                  className="flex items-center gap-1.5 text-slate-300 hover:text-red-400 text-sm font-medium px-3 py-1.5 transition-colors">
+                  <Heart className="w-4 h-4" />
+                  Favorilerim
+                </Link>
+                <Link href="/benim-teknelerim"
+                  className="flex items-center gap-1.5 text-slate-300 hover:text-blue-400 text-sm font-medium px-3 py-1.5 transition-colors">
+                  <Ship className="w-4 h-4" />
+                  Teknelerim
+                </Link>
+                <Link href="/benim-ilanlarim"
+                  className="flex items-center gap-1.5 text-slate-300 hover:text-orange-400 text-sm font-medium px-3 py-1.5 transition-colors">
+                  İlanlarım
+                </Link>
+
+                {/* Separator 1 */}
+                <div className="w-px h-4 bg-slate-700" />
+
+                {/* Messages and User */}
                 <Link href="/mesajlar"
                   className="flex items-center gap-1.5 text-slate-300 hover:text-pink-400 text-sm font-medium px-3 py-1.5 transition-colors">
                   <MessageSquare className="w-4 h-4" />
                   Mesajlar
                 </Link>
 
-                {/* User dropdown */}
                 <div className="relative group">
                   <button
                     className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm font-medium px-3 py-1.5 transition-colors">
@@ -117,22 +135,8 @@ export default function Navbar() {
                   </div>
                 </div>
 
-                {/* Other menus for normal users - aligned to right */}
+                {/* Separator 2 */}
                 <div className="w-px h-4 bg-slate-700" />
-                <Link href="/favorilerim"
-                  className="flex items-center gap-1.5 text-slate-300 hover:text-red-400 text-sm font-medium px-3 py-1.5 transition-colors">
-                  <Heart className="w-4 h-4" />
-                  Favorilerim
-                </Link>
-                <Link href="/benim-teknelerim"
-                  className="flex items-center gap-1.5 text-slate-300 hover:text-blue-400 text-sm font-medium px-3 py-1.5 transition-colors">
-                  <Ship className="w-4 h-4" />
-                  Teknelerim
-                </Link>
-                <Link href="/benim-ilanlarim"
-                  className="flex items-center gap-1.5 text-slate-300 hover:text-orange-400 text-sm font-medium px-3 py-1.5 transition-colors">
-                  İlanlarım
-                </Link>
               </>
             ) : (
               <>
