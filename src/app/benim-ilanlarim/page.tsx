@@ -13,13 +13,13 @@ interface Listing {
   status: string
   price?: number
   created_at: string
-  is_active?: boolean
 }
 
 export default function MyListingsPage() {
   const router = useRouter()
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string>('')
   const [userId, setUserId] = useState<string>('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all')
@@ -42,18 +42,27 @@ export default function MyListingsPage() {
 
   const fetchListings = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      console.log('Fetching listings for user:', userId)
+      const { data, error: fetchError } = await supabase
         .from('listings')
-        .select('id, title, description, category, status, price, is_active, created_at')
+        .select('id, title, description, category, status, price, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      console.log('Listings response:', { data, fetchError })
+
+      if (fetchError) {
+        throw new Error(`Supabase error: ${fetchError.message}`)
+      }
 
       setListings(data || [])
+      setError('')
       setLoading(false)
-    } catch (error) {
-      console.error('Error fetching listings:', error)
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Bilinmeyen hata'
+      console.error('Error fetching listings:', errorMsg)
+      setError(errorMsg)
+      setListings([])
       setLoading(false)
     }
   }
@@ -82,18 +91,19 @@ export default function MyListingsPage() {
     }
   }
 
-  const handleToggleVisibility = async (listingId: string, currentStatus: boolean) => {
+  const handleToggleVisibility = async (listingId: string, currentStatus: string) => {
     try {
+      const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
       const { error } = await supabase
         .from('listings')
-        .update({ is_active: !currentStatus })
+        .update({ status: newStatus })
         .eq('id', listingId)
         .eq('user_id', userId)
 
       if (error) throw error
 
       setListings(listings.map(l =>
-        l.id === listingId ? { ...l, is_active: !l.is_active } : l
+        l.id === listingId ? { ...l, status: newStatus } : l
       ))
     } catch (error) {
       console.error('Error updating listing:', error)
@@ -103,8 +113,8 @@ export default function MyListingsPage() {
 
   const filteredListings = listings.filter(listing => {
     if (filterStatus === 'all') return true
-    if (filterStatus === 'active') return listing.is_active !== false
-    if (filterStatus === 'inactive') return listing.is_active === false
+    if (filterStatus === 'active') return listing.status === 'active'
+    if (filterStatus === 'inactive') return listing.status !== 'active'
     return true
   })
 
@@ -162,6 +172,13 @@ export default function MyListingsPage() {
             >
               İnaktif ({listings.filter(l => l.is_active === false).length})
             </button>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
+            <p className="text-red-400">Hata: {error}</p>
           </div>
         )}
 
