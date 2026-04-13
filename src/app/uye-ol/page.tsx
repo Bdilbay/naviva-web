@@ -44,13 +44,32 @@ function UyeOlContent() {
       return
     }
 
-    if (asMaster && data.user) {
-      await supabase.from('master_profiles').insert({
-        user_id: data.user.id,
-        full_name: fullName,
-        specialties: [],
-        listed_publicly: false,
-      })
+    if (data.user) {
+      // Create user profile entry
+      try {
+        await supabase.from('profiles').insert({
+          id: data.user.id,
+          full_name: fullName,
+          avatar_url: null,
+        })
+      } catch (err) {
+        console.error('Profile creation error:', err)
+        // Don't fail signup if profile creation fails
+      }
+
+      // Create master profile if signing up as master
+      if (asMaster) {
+        try {
+          await supabase.from('master_profiles').insert({
+            user_id: data.user.id,
+            full_name: fullName,
+            specialties: [],
+            listed_publicly: false,
+          })
+        } catch (err) {
+          console.error('Master profile creation error:', err)
+        }
+      }
     }
 
     setLoading(false)

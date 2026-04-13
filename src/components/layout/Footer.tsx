@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { Anchor } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import BannerSlot from '@/components/BannerSlot'
 
 export default function Footer() {
   const { t } = useLanguage()
@@ -22,6 +23,13 @@ export default function Footer() {
 
   return (
     <footer className="border-t border-white/10 bg-[#0D1E2D] mt-auto">
+      {/* Banner Slot - Footer */}
+      <div className="border-b border-white/10 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <BannerSlot position="footer" className="h-40" />
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}

@@ -9,10 +9,10 @@ import { supabase } from '@/lib/supabase'
 interface ChatWindowProps {
   conversationId: string
   currentUserId: string
-  otherUserEmail: string
+  otherUserName: string
 }
 
-export function ChatWindow({ conversationId, currentUserId, otherUserEmail }: ChatWindowProps) {
+export function ChatWindow({ conversationId, currentUserId, otherUserName }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)

@@ -6,6 +6,7 @@ import { Listing, MasterProfile } from '@/types'
 import { getTranslations } from '@/lib/i18n/server'
 import type { Translations } from '@/lib/i18n'
 import { CategorySection } from '@/components/home/CategorySection'
+import BannerSlot from '@/components/BannerSlot'
 
 async function getRecentListings(): Promise<Listing[]> {
   const { data } = await supabase
@@ -98,6 +99,13 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Banner Slot - Home Hero */}
+      <section className="bg-slate-900 border-b border-slate-700/50 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <BannerSlot position="home_hero" className="h-48 sm:h-64 lg:h-72" />
+        </div>
+      </section>
+
       {/* Kategoriler + Son İlanlar */}
       <section className="bg-slate-900/50 border-y border-slate-700/50 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -153,6 +161,11 @@ export default async function HomePage() {
                       { name: 'Diğer', count: Math.floor(counts.equipmentCount * 0.1) },
                     ]}
                   />
+                </div>
+
+                {/* Banner Slot - Sidebar */}
+                <div className="mt-8">
+                  <BannerSlot position="sidebar" className="h-48" />
                 </div>
               </div>
             </div>

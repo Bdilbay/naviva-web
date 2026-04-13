@@ -10,7 +10,7 @@ interface Conversation {
   user_1_id: string
   user_2_id: string
   other_user_id: string
-  other_user_email: string
+  other_user_name: string
   last_message_at: string
   created_at: string
   unread_count?: number
@@ -27,7 +27,7 @@ interface Message {
 
 interface UserOption {
   id: string
-  email: string
+  full_name: string
 }
 
 export default function MessagesPage() {
@@ -71,19 +71,56 @@ export default function MessagesPage() {
 
       if (error) throw error
 
-      // Fetch user emails for all conversation participants
-      const userIds = new Set<string>()
-      data?.forEach((conv: any) => {
-        userIds.add(conv.user_1_id)
-        userIds.add(conv.user_2_id)
-      })
+      // Fetch user names for all conversation participants
+      const userIds = Array.from(
+        new Set(
+          data?.flatMap((conv: any) => [conv.user_1_id, conv.user_2_id]) || []
+        )
+      )
 
+      // Ensure user profiles exist and get their names via API
+      try {
+        const userNamesResponse = await fetch('/api/ensure-user-profiles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userIds }),
+        })
+
+        if (userNamesResponse.ok) {
+          const userNamesData = await userNamesResponse.json()
+          const userMap = new Map(
+            Object.entries(userNamesData.data || {}).map(([id, name]) => [id, name as string])
+          )
+
+          // Use API-fetched names
+          const formattedConversations = data?.map((conv: any) => {
+            const otherUserId = conv.user_1_id === currentUserId ? conv.user_2_id : conv.user_1_id
+            return {
+              id: conv.id,
+              user_1_id: conv.user_1_id,
+              user_2_id: conv.user_2_id,
+              other_user_id: otherUserId,
+              other_user_name: userMap.get(otherUserId) || 'Unknown User',
+              last_message_at: conv.last_message_at,
+              created_at: conv.created_at,
+            }
+          }) || []
+
+          setConversations(formattedConversations)
+          setLoading(false)
+          return
+        }
+      } catch (err) {
+        console.error('Error ensuring user profiles:', err)
+      }
+
+      // Fallback: fetch from profiles only (may show Unknown User)
       const { data: usersData } = await supabase
-        .from('auth.users')
-        .select('id, email')
-        .in('id', Array.from(userIds))
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds)
 
-      const userMap = new Map((usersData || []).map(u => [u.id, u.email]))
+      const userMap = new Map((usersData || []).map(u => [u.id, u.full_name]))
 
       const formattedConversations = data?.map((conv: any) => {
         const otherUserId = conv.user_1_id === currentUserId ? conv.user_2_id : conv.user_1_id
@@ -92,7 +129,7 @@ export default function MessagesPage() {
           user_1_id: conv.user_1_id,
           user_2_id: conv.user_2_id,
           other_user_id: otherUserId,
-          other_user_email: userMap.get(otherUserId) || `User ${otherUserId.slice(0, 8)}`,
+          other_user_name: userMap.get(otherUserId) || 'Unknown User',
           last_message_at: conv.last_message_at,
           created_at: conv.created_at,
         }
@@ -172,10 +209,10 @@ export default function MessagesPage() {
     setSearchingUsers(true)
     try {
       const { data, error } = await supabase
-        .from('auth.users')
-        .select('id, email')
+        .from('profiles')
+        .select('id, full_name')
         .neq('id', userId)
-        .ilike('email', `%${query}%`)
+        .ilike('full_name', `%${query}%`)
         .limit(10)
 
       if (error) throw error
@@ -227,7 +264,7 @@ export default function MessagesPage() {
         user_1_id: newConv.user_1_id,
         user_2_id: newConv.user_2_id,
         other_user_id: selectedUser.id,
-        other_user_email: selectedUser.email,
+        other_user_name: selectedUser.full_name,
         last_message_at: newConv.created_at,
         created_at: newConv.created_at,
       }
@@ -243,7 +280,7 @@ export default function MessagesPage() {
   }
 
   const filteredConversations = conversations.filter(conv =>
-    conv.other_user_email.toLowerCase().includes(searchQuery.toLowerCase())
+    conv.other_user_name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   return (
@@ -308,7 +345,7 @@ export default function MessagesPage() {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-white flex items-center gap-2">
                         <UserIcon size={14} className="text-pink-400" />
-                        {conv.other_user_email}
+                        {conv.other_user_name}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -430,7 +467,7 @@ export default function MessagesPage() {
                 {/* Selected User */}
                 {selectedUser && (
                   <div className="bg-pink-500/10 border border-pink-500/30 rounded-lg p-3 flex items-center justify-between">
-                    <span className="text-sm font-medium text-pink-400">{selectedUser.email}</span>
+                    <span className="text-sm font-medium text-pink-400">{selectedUser.full_name}</span>
                     <button
                       onClick={() => setSelectedUser(null)}
                       className="text-pink-400 hover:text-pink-300"

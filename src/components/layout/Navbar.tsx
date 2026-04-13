@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Menu, X, LogOut, User, Heart, Settings, MessageSquare } from 'lucide-react'
+import { Menu, X, LogOut, User, Heart, Settings, MessageSquare, Ship } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -81,17 +81,8 @@ export default function Navbar() {
             ))}
           </nav>
 
-          {/* Auth + Lang toggle */}
+          {/* Auth section (desktop) */}
           <div className="hidden md:flex items-center gap-3">
-            {/* Language toggle */}
-            <button
-              onClick={() => setLang(lang === 'tr' ? 'en' : 'tr')}
-              className="flex items-center gap-1 text-slate-400 hover:text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 hover:border-slate-500 transition-colors"
-              title={lang === 'tr' ? 'Switch to English' : "Türkçe'ye geç"}
-            >
-              {lang === 'tr' ? '🇬🇧 EN' : '🇹🇷 TR'}
-            </button>
-
             {user ? (
               <>
                 <Link href="/favorilerim"
@@ -104,9 +95,14 @@ export default function Navbar() {
                   <MessageSquare className="w-4 h-4" />
                   Mesajlar
                 </Link>
+                <Link href="/benim-teknelerim"
+                  className="flex items-center gap-1.5 text-slate-300 hover:text-blue-400 text-sm font-medium px-3 py-1.5 transition-colors">
+                  <Ship className="w-4 h-4" />
+                  Teknelerim
+                </Link>
                 <Link href="/benim-ilanlarim"
                   className="flex items-center gap-1.5 text-slate-300 hover:text-orange-400 text-sm font-medium px-3 py-1.5 transition-colors">
-                  Benim İlanlarım
+                  İlanlarım
                 </Link>
                 <div className="w-px h-4 bg-slate-700" />
                 <div className="relative group">
@@ -116,6 +112,16 @@ export default function Navbar() {
                     {displayName}
                   </button>
                   <div className="absolute right-0 mt-0 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 py-2 z-50">
+                    {isAdmin && (
+                      <>
+                        <Link href="/admin"
+                          className="flex items-center gap-2 text-slate-300 hover:text-orange-400 text-sm px-4 py-2 transition-colors hover:bg-slate-700/50 w-full">
+                          <Settings className="w-4 h-4" />
+                          Admin Panel
+                        </Link>
+                        <div className="border-t border-slate-700/50 my-1" />
+                      </>
+                    )}
                     <Link href="/ayarlar"
                       className="flex items-center gap-2 text-slate-300 hover:text-white text-sm px-4 py-2 transition-colors hover:bg-slate-700/50 w-full">
                       <Settings className="w-4 h-4" />
@@ -140,21 +146,24 @@ export default function Navbar() {
                 </Link>
               </>
             )}
-
-            {/* Admin Link */}
-            {user && isAdmin && (
-              <Link href="/admin"
-                className="flex items-center gap-1.5 text-slate-300 hover:text-orange-400 text-sm font-medium px-3 py-1.5 transition-colors border border-slate-700 hover:border-orange-500 rounded-lg">
-                <Settings className="w-4 h-4" />
-                Admin
-              </Link>
-            )}
           </div>
 
-          {/* Mobile hamburger */}
-          <button onClick={() => setOpen(!open)} className="md:hidden text-slate-300 hover:text-white">
-            {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+          {/* Right side: Language toggle + Mobile hamburger */}
+          <div className="flex items-center gap-3">
+            {/* Language toggle */}
+            <button
+              onClick={() => setLang(lang === 'tr' ? 'en' : 'tr')}
+              className="hidden md:flex items-center gap-1 text-slate-400 hover:text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 hover:border-slate-500 transition-colors"
+              title={lang === 'tr' ? 'Switch to English' : "Türkçe'ye geç"}
+            >
+              {lang === 'tr' ? '🇬🇧 EN' : '🇹🇷 TR'}
+            </button>
+
+            {/* Mobile hamburger */}
+            <button onClick={() => setOpen(!open)} className="md:hidden text-slate-300 hover:text-white">
+              {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -168,13 +177,6 @@ export default function Navbar() {
               </Link>
             ))}
             <div className="pt-3 border-t border-slate-700/50 flex flex-col gap-2 mt-2">
-              {/* Language toggle mobile */}
-              <button
-                onClick={() => { setLang(lang === 'tr' ? 'en' : 'tr'); setOpen(false) }}
-                className="flex items-center gap-2 text-slate-400 text-sm py-2 px-2"
-              >
-                {lang === 'tr' ? '🇬🇧 Switch to English' : '🇹🇷 Türkçeye Geç'}
-              </button>
               {user ? (
                 <>
                   <Link href="/favorilerim" onClick={() => setOpen(false)}
@@ -187,11 +189,26 @@ export default function Navbar() {
                     <MessageSquare className="w-4 h-4" />
                     Mesajlar
                   </Link>
+                  <Link href="/benim-teknelerim" onClick={() => setOpen(false)}
+                    className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-blue-400">
+                    <Ship className="w-4 h-4" />
+                    Teknelerim
+                  </Link>
                   <Link href="/benim-ilanlarim" onClick={() => setOpen(false)}
                     className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-orange-400">
-                    Benim İlanlarım
+                    İlanlarım
                   </Link>
                   <div className="border-t border-slate-700/50 my-2 pt-2 mt-2">
+                    {isAdmin && (
+                      <>
+                        <Link href="/admin" onClick={() => setOpen(false)}
+                          className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-orange-400">
+                          <Settings className="w-4 h-4" />
+                          Admin Panel
+                        </Link>
+                        <div className="border-t border-slate-700/50 my-1" />
+                      </>
+                    )}
                     <Link href="/ayarlar" onClick={() => setOpen(false)}
                       className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:bg-slate-700/50 rounded-lg">
                       <Settings className="w-4 h-4" />
@@ -215,6 +232,14 @@ export default function Navbar() {
                   </Link>
                 </>
               )}
+              <div className="pt-2 mt-2 border-t border-slate-700/50">
+                {/* Language toggle mobile */}
+                <button
+                  onClick={() => { setLang(lang === 'tr' ? 'en' : 'tr'); setOpen(false) }}
+                  className="flex items-center gap-2 text-slate-400 text-sm py-2 px-2 w-full hover:text-white">
+                  {lang === 'tr' ? '🇬🇧 English' : '🇹🇷 Türkçe'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

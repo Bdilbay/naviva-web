@@ -3,7 +3,7 @@ import { checkContentSeverity, filterContent } from './content-filter'
 
 export interface ConversationParticipant {
   id: string
-  email: string
+  full_name: string
   avatar_url?: string
 }
 
@@ -52,8 +52,8 @@ export async function getOrCreateConversation(
           id,
           user_1_id,
           user_2_id,
-          user_1:users!conversations_user_1_id_fkey(id, email, avatar_url),
-          user_2:users!conversations_user_2_id_fkey(id, email, avatar_url),
+          user_1:profiles!user_1_id(id, full_name, avatar_url),
+          user_2:profiles!user_2_id(id, full_name, avatar_url),
           last_message_at,
           created_at
         `)
@@ -62,11 +62,21 @@ export async function getOrCreateConversation(
 
       if (error) throw error
 
+      // Ensure user names are populated with defaults if missing
+      const user1 = Array.isArray(data.user_1) ? data.user_1[0] : data.user_1
+      const user2 = Array.isArray(data.user_2) ? data.user_2[0] : data.user_2
+
       return {
         conversation: {
           ...data,
-          user_1: Array.isArray(data.user_1) ? data.user_1[0] : data.user_1,
-          user_2: Array.isArray(data.user_2) ? data.user_2[0] : data.user_2,
+          user_1: {
+            ...user1,
+            full_name: user1?.full_name || 'Unknown User',
+          },
+          user_2: {
+            ...user2,
+            full_name: user2?.full_name || 'Unknown User',
+          },
         } as Conversation,
         isNew: false,
       }
@@ -83,8 +93,8 @@ export async function getOrCreateConversation(
         id,
         user_1_id,
         user_2_id,
-        user_1:users!conversations_user_1_id_fkey(id, email, avatar_url),
-        user_2:users!conversations_user_2_id_fkey(id, email, avatar_url),
+        user_1:profiles!user_1_id(id, full_name, avatar_url),
+        user_2:profiles!user_2_id(id, full_name, avatar_url),
         last_message_at,
         created_at
       `)
@@ -92,11 +102,21 @@ export async function getOrCreateConversation(
 
     if (insertError) throw insertError
 
+    // Ensure user names are populated with defaults if missing
+    const user1 = Array.isArray(newConv.user_1) ? newConv.user_1[0] : newConv.user_1
+    const user2 = Array.isArray(newConv.user_2) ? newConv.user_2[0] : newConv.user_2
+
     return {
       conversation: {
         ...newConv,
-        user_1: Array.isArray(newConv.user_1) ? newConv.user_1[0] : newConv.user_1,
-        user_2: Array.isArray(newConv.user_2) ? newConv.user_2[0] : newConv.user_2,
+        user_1: {
+          ...user1,
+          full_name: user1?.full_name || 'Unknown User',
+        },
+        user_2: {
+          ...user2,
+          full_name: user2?.full_name || 'Unknown User',
+        },
       } as Conversation,
       isNew: true,
     }
@@ -255,8 +275,8 @@ export async function getUserConversations(userId: string): Promise<Conversation
         id,
         user_1_id,
         user_2_id,
-        user_1:users!conversations_user_1_id_fkey(id, email, avatar_url),
-        user_2:users!conversations_user_2_id_fkey(id, email, avatar_url),
+        user_1:profiles!user_1_id(id, full_name, avatar_url),
+        user_2:profiles!user_2_id(id, full_name, avatar_url),
         last_message_at,
         created_at,
         messages(id)
@@ -266,10 +286,24 @@ export async function getUserConversations(userId: string): Promise<Conversation
 
     if (error) throw error
 
-    const conversations = data?.map((conv: any) => ({
-      ...conv,
-      message_count: conv.messages?.length || 0,
-    })) || []
+    const conversations = data?.map((conv: any) => {
+      // Ensure user names are populated with defaults if missing
+      const user1 = Array.isArray(conv.user_1) ? conv.user_1[0] : conv.user_1
+      const user2 = Array.isArray(conv.user_2) ? conv.user_2[0] : conv.user_2
+
+      return {
+        ...conv,
+        user_1: {
+          ...user1,
+          full_name: user1?.full_name || 'Unknown User',
+        },
+        user_2: {
+          ...user2,
+          full_name: user2?.full_name || 'Unknown User',
+        },
+        message_count: conv.messages?.length || 0,
+      }
+    }) || []
 
     return conversations
   } catch (error) {

@@ -45,13 +45,78 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // Fetch user names for all users in conversations
+    const userIds = new Set<string>()
+    conversationsData.forEach((conv: any) => {
+      userIds.add(conv.user_1_id)
+      userIds.add(conv.user_2_id)
+    })
+
+    const userIdArray = Array.from(userIds)
+
+    // First get existing profiles
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', userIdArray)
+
+    const userMap = new Map<string, string>()
+    const foundUserIds = new Set<string>()
+
+    // Add existing profiles
+    (profilesData || []).forEach((u: any) => {
+      if (u.full_name) {
+        userMap.set(u.id, u.full_name)
+        foundUserIds.add(u.id)
+      }
+    })
+
+    // For missing users, fetch from auth and create profiles
+    const missingUserIds = userIdArray.filter(id => !foundUserIds.has(id))
+    if (missingUserIds.length > 0) {
+      try {
+        const { data: authUsers } = await supabase.auth.admin.listUsers()
+
+        const authUserMap = new Map(
+          authUsers?.users?.map(u => [
+            u.id,
+            (u.user_metadata?.full_name as string) || u.email || 'Unknown User',
+          ]) || []
+        )
+
+        // Create missing profile entries
+        const profilesToInsert = missingUserIds
+          .map(id => ({
+            id,
+            full_name: authUserMap.get(id) || 'Unknown User',
+            avatar_url: null,
+          }))
+          .filter(p => p.full_name && p.full_name !== 'Unknown User')
+
+        if (profilesToInsert.length > 0) {
+          await supabase.from('profiles').upsert(profilesToInsert)
+        }
+
+        // Add to map
+        missingUserIds.forEach(id => {
+          const name = authUserMap.get(id) || 'Unknown User'
+          userMap.set(id, name)
+        })
+      } catch (err) {
+        // Fallback: use Unknown User for missing users
+        missingUserIds.forEach(id => {
+          userMap.set(id, 'Unknown User')
+        })
+      }
+    }
+
     // Format conversations
     const formattedConversations = conversationsData.map((conv: any) => ({
       id: conv.id,
       user_1_id: conv.user_1_id,
       user_2_id: conv.user_2_id,
-      user_1_email: `User ${conv.user_1_id?.slice(0, 8) || 'unknown'}`,
-      user_2_email: `User ${conv.user_2_id?.slice(0, 8) || 'unknown'}`,
+      user_1_name: userMap.get(conv.user_1_id) || 'Unknown User',
+      user_2_name: userMap.get(conv.user_2_id) || 'Unknown User',
       message_count: conv.messages?.length || 0,
       last_message_at: conv.last_message_at,
       created_at: conv.created_at,

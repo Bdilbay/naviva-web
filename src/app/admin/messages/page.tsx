@@ -8,8 +8,8 @@ interface Conversation {
   id: string
   user_1_id: string
   user_2_id: string
-  user_1_email: string
-  user_2_email: string
+  user_1_name: string
+  user_2_name: string
   message_count: number
   last_message_at: string
   created_at: string
@@ -19,7 +19,7 @@ interface Message {
   id: string
   conversation_id: string
   sender_id: string
-  sender_email: string
+  sender_name: string
   content: string
   is_deleted: boolean
   deleted_reason?: string
@@ -41,6 +41,7 @@ export default function MessagesPage() {
 
   const fetchConversations = async () => {
     try {
+      // First ensure user profiles exist
       const response = await fetch('/api/admin/get-conversations')
 
       if (!response.ok) {
@@ -53,6 +54,7 @@ export default function MessagesPage() {
         throw new Error(result.error || 'Failed to fetch conversations')
       }
 
+      // The API endpoint now ensures profiles are created, so names should be populated
       setConversations(result.data || [])
       setLoading(false)
     } catch (error) {
@@ -79,11 +81,20 @@ export default function MessagesPage() {
 
       if (error) throw error
 
+      // Fetch sender names from profiles
+      const senderIds = new Set((data || []).map(msg => msg.sender_id))
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', Array.from(senderIds))
+
+      const senderMap = new Map((profilesData || []).map(p => [p.id, p.full_name]))
+
       const formattedMessages = data?.map((msg: any) => ({
         id: msg.id,
         conversation_id: msg.conversation_id,
         sender_id: msg.sender_id,
-        sender_email: `User ${msg.sender_id.slice(0, 8)}`,
+        sender_name: senderMap.get(msg.sender_id) || 'Unknown User',
         content: msg.content,
         is_deleted: msg.is_deleted,
         deleted_reason: msg.deleted_reason,
@@ -131,8 +142,8 @@ export default function MessagesPage() {
   }
 
   const filteredConversations = conversations.filter(conv =>
-    conv.user_1_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    conv.user_2_email.toLowerCase().includes(searchQuery.toLowerCase())
+    conv.user_1_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    conv.user_2_name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   return (
@@ -180,11 +191,11 @@ export default function MessagesPage() {
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-white">{conv.user_1_email}</span>
+                    <span className="text-sm font-medium text-white">{conv.user_1_name}</span>
                     <span className="text-xs text-slate-400">{conv.message_count}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">→ {conv.user_2_email}</span>
+                    <span className="text-xs text-slate-400">→ {conv.user_2_name}</span>
                     <Clock size={12} className="text-slate-500" />
                   </div>
                 </button>
@@ -209,7 +220,7 @@ export default function MessagesPage() {
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
-                        <span className="text-sm font-medium text-blue-400">{msg.sender_email}</span>
+                        <span className="text-sm font-medium text-blue-400">{msg.sender_name}</span>
                         <span className="text-xs text-slate-400 ml-2">
                           {new Date(msg.created_at).toLocaleString('tr-TR')}
                         </span>

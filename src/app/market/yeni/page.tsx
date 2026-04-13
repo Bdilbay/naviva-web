@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { ChevronRight, ChevronLeft, Loader2, Plus, X } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { ERROR_MESSAGES, handleApiError } from '@/lib/errors'
 
 const BOAT_TYPES = [
   'Motoryat', 'Yelkenli', 'Katamaran', 'Sürat Teknesi', 'Gulet',
@@ -25,6 +26,7 @@ const isBoatCategory = (cat: string) => cat.startsWith('boat_')
 export default function YeniIlanPage() {
   const router = useRouter()
   const { t } = useLanguage()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -79,20 +81,24 @@ export default function YeniIlanPage() {
     const url = photoInput.trim()
 
     if (!url) {
-      setPhotoError('Lütfen fotoğraf URL\'si girin')
+      setPhotoError(ERROR_MESSAGES.PHOTO.URL_INVALID)
       return
     }
 
     if (form.photos.includes(url)) {
-      setPhotoError('Bu fotoğraf zaten eklenmiş')
+      setPhotoError(ERROR_MESSAGES.PHOTO.URL_ALREADY_ADDED)
       return
     }
 
     // Basic URL validation
     try {
       new URL(url)
+      if (!url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+        setPhotoError(ERROR_MESSAGES.PHOTO.INVALID_FILE_TYPE)
+        return
+      }
     } catch {
-      setPhotoError('Geçerli bir URL girin (https:// ile başlaması gerekir)')
+      setPhotoError(ERROR_MESSAGES.PHOTO.URL_INVALID)
       return
     }
 
@@ -104,18 +110,18 @@ export default function YeniIlanPage() {
     const files = e.currentTarget.files
     if (!files || files.length === 0) return
     if (!user) {
-      setPhotoError('Lütfen giriş yapın')
+      setPhotoError(ERROR_MESSAGES.AUTH.NOT_LOGGED_IN)
       return
     }
 
     setPhotoError('')
     const uploadPromises = Array.from(files).map(async (file) => {
       if (!file.type.startsWith('image/')) {
-        throw new Error('Sadece resim dosyaları kabul edilir')
+        throw new Error(ERROR_MESSAGES.PHOTO.INVALID_FILE_TYPE)
       }
 
       if (file.size > 10 * 1024 * 1024) {
-        throw new Error('Dosya boyutu 10MB\'dan büyük olamaz')
+        throw new Error(ERROR_MESSAGES.PHOTO.FILE_TOO_LARGE)
       }
 
       const formData = new FormData()
@@ -129,7 +135,7 @@ export default function YeniIlanPage() {
 
       const result = await response.json()
       if (!result.success) {
-        throw new Error(result.error || 'Yükleme başarısız')
+        throw new Error(result.error || ERROR_MESSAGES.PHOTO.UPLOAD_FAILED)
       }
 
       return result.data.url
@@ -139,9 +145,12 @@ export default function YeniIlanPage() {
       setUploading(true)
       const uploadedUrls = await Promise.all(uploadPromises)
       set('photos', [...form.photos, ...uploadedUrls])
-      e.currentTarget.value = ''
+      // Use ref instead of e.currentTarget to avoid null reference in async context
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     } catch (err) {
-      setPhotoError(err instanceof Error ? err.message : 'Yükleme hatası')
+      setPhotoError(handleApiError(err, 'Fotoğraf Yükleme'))
     } finally {
       setUploading(false)
     }
@@ -154,8 +163,43 @@ export default function YeniIlanPage() {
     setSubmitting(true)
     setError('')
 
+    // Validation
+    if (!form.category) {
+      setError(ERROR_MESSAGES.LISTING.CATEGORY_REQUIRED)
+      setSubmitting(false)
+      return
+    }
+
+    if (!form.title.trim()) {
+      setError(ERROR_MESSAGES.LISTING.TITLE_REQUIRED)
+      setSubmitting(false)
+      return
+    }
+
+    if (form.contact_email && !form.contact_email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      setError(ERROR_MESSAGES.LISTING.CONTACT_EMAIL_INVALID)
+      setSubmitting(false)
+      return
+    }
+
+    if (form.contact_phone && !form.contact_phone.match(/^[0-9\s\-\+\(\)]+$/)) {
+      setError(ERROR_MESSAGES.LISTING.CONTACT_PHONE_INVALID)
+      setSubmitting(false)
+      return
+    }
+
+    if (form.price && isNaN(parseFloat(form.price))) {
+      setError(ERROR_MESSAGES.LISTING.PRICE_INVALID)
+      setSubmitting(false)
+      return
+    }
+
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { router.push('/giris?redirect=/market/yeni'); return }
+    if (!session) {
+      setError(ERROR_MESSAGES.AUTH.SESSION_EXPIRED)
+      router.push('/giris?redirect=/market/yeni')
+      return
+    }
 
     const payload = {
       user_id: session.user.id,
@@ -201,10 +245,10 @@ export default function YeniIlanPage() {
       if (result.success && result.data?.id) {
         router.push(`/market/${result.data.id}`)
       } else {
-        setError(t.newListing.errSave + (result.error || 'Bilinmeyen hata'))
+        setError(handleApiError(result.error, 'İlan Oluşturma'))
       }
     } catch (err) {
-      setError(t.newListing.errSave + (err instanceof Error ? err.message : 'Bağlantı hatası'))
+      setError(handleApiError(err, 'İlan Oluşturma'))
     } finally {
       setSubmitting(false)
     }
@@ -494,6 +538,7 @@ export default function YeniIlanPage() {
                 </div>
                 <div className="relative">
                   <input
+                    ref={fileInputRef}
                     type="file"
                     multiple
                     accept="image/*"
