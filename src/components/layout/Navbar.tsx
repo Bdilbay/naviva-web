@@ -81,6 +81,9 @@ export default function Navbar() {
               Usta Bul
             </Link>
 
+            {/* Separator - before user links */}
+            {user && <div className="w-px h-4 bg-slate-700" />}
+
             {/* My Listings & Boats */}
             {user && (
               <>
@@ -193,8 +196,8 @@ export default function Navbar() {
               Usta Bul
             </Link>
 
-            {/* Separator 1 */}
-            <div className="my-2 h-px bg-slate-700" />
+            {/* Separator - before user links */}
+            {user && <div className="my-2 h-px bg-slate-700" />}
 
             {/* User Links - only if logged in */}
             {user && (
