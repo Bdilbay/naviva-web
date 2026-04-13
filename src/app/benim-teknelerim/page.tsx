@@ -8,7 +8,7 @@ import { Trash2, Plus, Ship, AlertCircle } from 'lucide-react'
 interface Boat {
   id: string
   name: string
-  boat_type?: string
+  type?: string
   created_at: string
 }
 
@@ -16,6 +16,7 @@ export default function MyBoatsPage() {
   const router = useRouter()
   const [boats, setBoats] = useState<Boat[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string>('')
   const [userId, setUserId] = useState<string>('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -37,18 +38,41 @@ export default function MyBoatsPage() {
 
   const fetchBoats = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      console.log('Fetching boats for user:', userId)
+
+      // Test: Tüm boats'ı getir (RLS test için)
+      const { data, error: fetchError } = await supabase
         .from('boats')
-        .select('id, name, boat_type, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
+        .select('*')
 
-      if (error) throw error
+      console.log('All boats test:', { data, fetchError })
 
-      setBoats(data || [])
+      // Eğer çalışırsa, user'ın boats'ını getir
+      if (!fetchError) {
+        const { data: userBoats, error: userError } = await supabase
+          .from('boats')
+          .select('id, name, type, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+
+        console.log('User boats response:', { userBoats, userError })
+
+        if (userError) {
+          throw new Error(`User boats error: ${userError.message}`)
+        }
+
+        setBoats(userBoats || [])
+        setError('')
+      } else {
+        throw new Error(`Fetch all boats error: ${fetchError.message}`)
+      }
+
       setLoading(false)
-    } catch (error) {
-      console.error('Error fetching boats:', error)
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Bilinmeyen hata'
+      console.error('Error fetching boats:', errorMsg)
+      setError(errorMsg)
+      setBoats([])
       setLoading(false)
     }
   }
@@ -98,6 +122,13 @@ export default function MyBoatsPage() {
           <p className="text-slate-400">Sahip olduğunuz tekneleri yönetin</p>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
+            <p className="text-red-400">Hata: {error}</p>
+          </div>
+        )}
+
         {/* Boats Grid */}
         {loading ? (
           <div className="text-center py-12">
@@ -126,8 +157,8 @@ export default function MyBoatsPage() {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-white mb-1">{boat.name}</h3>
-                    {boat.boat_type && (
-                      <p className="text-sm text-slate-400">{boat.boat_type}</p>
+                    {boat.type && (
+                      <p className="text-sm text-slate-400">{boat.type}</p>
                     )}
                   </div>
                   <div className="bg-blue-500/10 p-3 rounded-lg">
