@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, Eye, EyeOff } from 'lucide-react'
+import { Plus, Edit2, Trash2, Eye, EyeOff, Upload, AlertCircle, Loader } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 interface Banner {
@@ -28,8 +28,12 @@ const POSITIONS = [
 export default function BannersAdminPage() {
   const [banners, setBanners] = useState<Banner[]>([])
   const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Banner | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string>('')
 
   const [formData, setFormData] = useState({
     title: '',
@@ -50,71 +54,114 @@ export default function BannersAdminPage() {
   const fetchBanners = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('banners')
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (fetchError) throw new Error(fetchError.message)
       setBanners((data as Banner[]) || [])
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Reklam yüklemesi başarısız'
       console.error('Error fetching banners:', err)
-      alert('Reklam yüklemesi başarısız')
+      setError(message)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const uploadImage = async (file: File): Promise<string> => {
+    const fileName = `banner_${Date.now()}_${Math.random().toString(36).substring(7)}.${file.name.split('.').pop()}`
+    const filePath = `banners/${fileName}`
 
-    const payload = {
-      title: formData.title,
-      image_url: formData.image_url || null,
-      link_url: formData.link_url || null,
-      position: formData.position,
-      width: formData.width ? parseInt(formData.width) : null,
-      height: formData.height ? parseInt(formData.height) : null,
-      starts_at: formData.starts_at || null,
-      ends_at: formData.ends_at || null,
-      is_active: formData.is_active,
+    const { error: uploadError } = await supabase.storage
+      .from('banners')
+      .upload(filePath, file)
+
+    if (uploadError) {
+      throw new Error(`Resim yükleme hatası: ${uploadError.message}`)
     }
 
+    const { data: publicData } = supabase.storage
+      .from('banners')
+      .getPublicUrl(filePath)
+
+    return publicData?.publicUrl || ''
+  }
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Resim boyutu 5MB\'dan küçük olmalıdır')
+      return
+    }
+
+    setImageFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+      setFormData({ ...formData, image_url: '' })
+    }
+    reader.readAsDataURL(file)
+    setError('')
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSubmitting(true)
+
     try {
+      if (!formData.title.trim()) {
+        throw new Error('Başlık gereklidir')
+      }
+
+      let finalImageUrl = formData.image_url
+
+      // Upload image if file selected
+      if (imageFile) {
+        finalImageUrl = await uploadImage(imageFile)
+      }
+
+      const payload = {
+        title: formData.title.trim(),
+        image_url: finalImageUrl || null,
+        link_url: formData.link_url || null,
+        position: formData.position,
+        width: formData.width ? parseInt(formData.width) : null,
+        height: formData.height ? parseInt(formData.height) : null,
+        starts_at: formData.starts_at || null,
+        ends_at: formData.ends_at || null,
+        is_active: formData.is_active,
+      }
+
       if (editing) {
-        const { error } = await supabase
+        const { error: updateError } = await supabase
           .from('banners')
           .update(payload)
           .eq('id', editing.id)
 
-        if (error) throw error
+        if (updateError) throw new Error(updateError.message)
         alert('Reklam güncellendi')
       } else {
-        const { error } = await supabase
+        const { error: insertError } = await supabase
           .from('banners')
           .insert([payload])
 
-        if (error) throw error
+        if (insertError) throw new Error(insertError.message)
         alert('Reklam oluşturuldu')
       }
 
-      setShowForm(false)
-      setEditing(null)
-      setFormData({
-        title: '',
-        image_url: '',
-        link_url: '',
-        position: 'home_hero',
-        width: '',
-        height: '',
-        starts_at: '',
-        ends_at: '',
-        is_active: true,
-      })
+      closeForm()
       fetchBanners()
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Kaydetme başarısız'
+      setError(message)
       console.error('Error saving banner:', err)
-      alert('Kaydetme başarısız')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -122,31 +169,33 @@ export default function BannersAdminPage() {
     if (!confirm('Bu reklamı silmek istediğinize emin misiniz?')) return
 
     try {
-      const { error } = await supabase
+      const { error: deleteError } = await supabase
         .from('banners')
         .delete()
         .eq('id', id)
 
-      if (error) throw error
+      if (deleteError) throw new Error(deleteError.message)
       alert('Reklam silindi')
       fetchBanners()
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Silme başarısız'
       console.error('Error deleting banner:', err)
-      alert('Silme başarısız')
+      alert(message)
     }
   }
 
   const handleToggleActive = async (id: string, currentActive: boolean) => {
     try {
-      const { error } = await supabase
+      const { error: toggleError } = await supabase
         .from('banners')
         .update({ is_active: !currentActive })
         .eq('id', id)
 
-      if (error) throw error
+      if (toggleError) throw new Error(toggleError.message)
       fetchBanners()
     } catch (err) {
       console.error('Error toggling banner:', err)
+      alert('Durum değiştirilirken hata oluştu')
     }
   }
 
@@ -163,12 +212,17 @@ export default function BannersAdminPage() {
       ends_at: banner.ends_at ? banner.ends_at.slice(0, 16) : '',
       is_active: banner.is_active,
     })
+    setImageFile(null)
+    setImagePreview(banner.image_url || '')
     setShowForm(true)
   }
 
   const closeForm = () => {
     setShowForm(false)
     setEditing(null)
+    setImageFile(null)
+    setImagePreview('')
+    setError('')
     setFormData({
       title: '',
       image_url: '',
@@ -195,6 +249,14 @@ export default function BannersAdminPage() {
         </button>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+      )}
+
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -207,6 +269,13 @@ export default function BannersAdminPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {error && (
+                <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-red-400 text-sm">{error}</p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Başlık *
@@ -215,8 +284,7 @@ export default function BannersAdminPage() {
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500"
                   placeholder="Reklam başlığı"
                 />
               </div>
@@ -263,17 +331,62 @@ export default function BannersAdminPage() {
                 </div>
               </div>
 
+              {/* Image Upload */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Reklam Resmi URL
+                <label className="block text-sm font-medium text-slate-300 mb-3">
+                  Reklam Resmi
                 </label>
-                <input
-                  type="url"
-                  value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
-                  placeholder="https://..."
-                />
+                <div className="space-y-3">
+                  {imagePreview && (
+                    <div className="relative w-full h-40 rounded-lg overflow-hidden border border-slate-600">
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+
+                  <label className="block">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
+                    <div className="px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg cursor-pointer hover:border-slate-500 transition-colors flex items-center gap-2">
+                      <Upload className="w-4 h-4 text-slate-400" />
+                      <span className="text-slate-300 text-sm">Dosyadan Yükle (JPG, PNG - Max 5MB)</span>
+                    </div>
+                  </label>
+
+                  {imageFile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageFile(null)
+                        setImagePreview('')
+                        setFormData({ ...formData, image_url: '' })
+                      }}
+                      className="w-full px-3 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg text-sm transition-colors"
+                    >
+                      Resmi Kaldır
+                    </button>
+                  )}
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-slate-600"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-slate-800 text-slate-400">veya</span>
+                    </div>
+                  </div>
+
+                  <input
+                    type="url"
+                    value={formData.image_url}
+                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500"
+                    placeholder="https://... (URL)"
+                  />
+                </div>
               </div>
 
               <div>
@@ -284,7 +397,7 @@ export default function BannersAdminPage() {
                   type="url"
                   value={formData.link_url}
                   onChange={(e) => setFormData({ ...formData, link_url: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500"
                   placeholder="https://..."
                 />
               </div>
@@ -330,14 +443,23 @@ export default function BannersAdminPage() {
               <div className="flex gap-3 pt-4 border-t border-slate-700">
                 <button
                   type="submit"
-                  className="flex-1 bg-orange-500 hover:bg-orange-400 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
+                  disabled={submitting}
+                  className="flex-1 bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
-                  {editing ? 'Güncelle' : 'Oluştur'}
+                  {submitting ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Kaydediliyor...
+                    </>
+                  ) : (
+                    editing ? 'Güncelle' : 'Oluştur'
+                  )}
                 </button>
                 <button
                   type="button"
                   onClick={closeForm}
-                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
+                  disabled={submitting}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
                 >
                   İptal
                 </button>
