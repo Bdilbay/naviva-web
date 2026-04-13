@@ -71,15 +71,24 @@ export default function Navbar() {
             <Image src="/naviva-logo.png" alt="Naviva" width={110} height={36} className="h-9 w-auto" priority />
           </Link>
 
-          {/* Desktop nav - placeholder that stays empty for spacing */}
-          <nav className="hidden md:flex items-center gap-8 flex-1">
-          </nav>
+          {/* Desktop nav */}
+          <nav className="hidden md:flex items-center gap-4 flex-1">
+            {/* Browse & Explore */}
+            <Link href="/market"
+              className="text-slate-300 hover:text-white text-sm font-medium px-3 py-1.5 transition-colors">
+              İlanları İncele
+            </Link>
+            <Link href="/ustalar"
+              className="text-slate-300 hover:text-white text-sm font-medium px-3 py-1.5 transition-colors">
+              Usta Bul
+            </Link>
 
-          {/* Auth section (desktop) */}
-          <div className="hidden md:flex items-center gap-3">
-            {user ? (
+            {/* Separator 1 */}
+            <div className="w-px h-4 bg-slate-700" />
+
+            {/* User Links - only show if logged in */}
+            {user && (
               <>
-                {/* Favorites, Boats, Listings */}
                 <Link href="/favorilerim"
                   className="flex items-center gap-1.5 text-slate-300 hover:text-red-400 text-sm font-medium px-3 py-1.5 transition-colors">
                   <Heart className="w-4 h-4" />
@@ -94,8 +103,15 @@ export default function Navbar() {
                   className="flex items-center gap-1.5 text-slate-300 hover:text-orange-400 text-sm font-medium px-3 py-1.5 transition-colors">
                   İlanlarım
                 </Link>
+              </>
+            )}
+          </nav>
 
-                {/* Separator 1 */}
+          {/* Auth section (desktop) */}
+          <div className="hidden md:flex items-center gap-4">
+            {user ? (
+              <>
+                {/* Separator 2 */}
                 <div className="w-px h-4 bg-slate-700" />
 
                 {/* Messages and User */}
@@ -134,9 +150,6 @@ export default function Navbar() {
                     </button>
                   </div>
                 </div>
-
-                {/* Separator 2 */}
-                <div className="w-px h-4 bg-slate-700" />
               </>
             ) : (
               <>
@@ -173,76 +186,93 @@ export default function Navbar() {
       {open && (
         <div className="md:hidden border-t border-slate-700/50 bg-slate-900">
           <div className="px-4 py-4 space-y-1">
-            {navLinks.map(link => (
-              <Link key={link.href} href={link.href} onClick={() => setOpen(false)}
-                className="block text-slate-300 hover:text-white text-sm font-medium py-2.5 px-2 rounded-lg hover:bg-slate-800">
-                {link.label}
-              </Link>
-            ))}
-            <div className="pt-3 border-t border-slate-700/50 flex flex-col gap-2 mt-2">
-              {user ? (
-                <>
-                  <Link href="/favorilerim" onClick={() => setOpen(false)}
-                    className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-red-400">
-                    <Heart className="w-4 h-4" />
-                    Favorilerim
+            {/* Browse & Explore Section */}
+            <Link href="/market" onClick={() => setOpen(false)}
+              className="block text-slate-300 hover:text-white text-sm font-medium py-2.5 px-2 rounded-lg hover:bg-slate-800">
+              İlanları İncele
+            </Link>
+            <Link href="/ustalar" onClick={() => setOpen(false)}
+              className="block text-slate-300 hover:text-white text-sm font-medium py-2.5 px-2 rounded-lg hover:bg-slate-800">
+              Usta Bul
+            </Link>
+
+            {/* Separator 1 */}
+            <div className="my-2 h-px bg-slate-700" />
+
+            {/* User Links Section */}
+            {user && (
+              <>
+                <Link href="/favorilerim" onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-red-400">
+                  <Heart className="w-4 h-4" />
+                  Favorilerim
+                </Link>
+                <Link href="/benim-teknelerim" onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-blue-400">
+                  <Ship className="w-4 h-4" />
+                  Teknelerim
+                </Link>
+                <Link href="/benim-ilanlarim" onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-orange-400">
+                  İlanlarım
+                </Link>
+              </>
+            )}
+
+            {/* Separator 2 */}
+            <div className="my-2 h-px bg-slate-700" />
+
+            {/* Messages & User Section */}
+            {user ? (
+              <>
+                <Link href="/mesajlar" onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-pink-400">
+                  <MessageSquare className="w-4 h-4" />
+                  Mesajlar
+                </Link>
+
+                <div className="border-t border-slate-700/50 my-2 pt-2">
+                  {isAdmin && (
+                    <>
+                      <Link href="/admin" onClick={() => setOpen(false)}
+                        className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-orange-400">
+                        <Settings className="w-4 h-4" />
+                        Admin Panel
+                      </Link>
+                      <div className="border-t border-slate-700/50 my-1" />
+                    </>
+                  )}
+                  <Link href="/ayarlar" onClick={() => setOpen(false)}
+                    className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:bg-slate-700/50 rounded-lg">
+                    <Settings className="w-4 h-4" />
+                    Ayarlarım
                   </Link>
-                  <Link href="/mesajlar" onClick={() => setOpen(false)}
-                    className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-pink-400">
-                    <MessageSquare className="w-4 h-4" />
-                    Mesajlar
-                  </Link>
-                  <Link href="/benim-teknelerim" onClick={() => setOpen(false)}
-                    className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-blue-400">
-                    <Ship className="w-4 h-4" />
-                    Teknelerim
-                  </Link>
-                  <Link href="/benim-ilanlarim" onClick={() => setOpen(false)}
-                    className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-orange-400">
-                    İlanlarım
-                  </Link>
-                  <div className="border-t border-slate-700/50 my-2 pt-2 mt-2">
-                    {isAdmin && (
-                      <>
-                        <Link href="/admin" onClick={() => setOpen(false)}
-                          className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-orange-400">
-                          <Settings className="w-4 h-4" />
-                          Admin Panel
-                        </Link>
-                        <div className="border-t border-slate-700/50 my-1" />
-                      </>
-                    )}
-                    <Link href="/ayarlar" onClick={() => setOpen(false)}
-                      className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:bg-slate-700/50 rounded-lg">
-                      <Settings className="w-4 h-4" />
-                      Ayarlarım
-                    </Link>
-                    <button onClick={() => { handleSignOut(); setOpen(false) }}
-                      className="flex items-center gap-2 text-slate-400 hover:text-orange-400 text-sm py-2 px-2 text-left w-full hover:bg-slate-700/50 rounded-lg">
-                      <LogOut className="w-4 h-4" />
-                      Çıkış Yap
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Link href="/giris" onClick={() => setOpen(false)} className="text-slate-300 text-sm py-2 px-2">
-                    {t.nav.login}
-                  </Link>
-                  <Link href="/uye-ol" onClick={() => setOpen(false)}
-                    className="bg-orange-500 text-white text-sm font-semibold px-4 py-2.5 rounded-lg text-center">
-                    {t.nav.register}
-                  </Link>
-                </>
-              )}
-              <div className="pt-2 mt-2 border-t border-slate-700/50">
-                {/* Language toggle mobile */}
-                <button
-                  onClick={() => { setLang(lang === 'tr' ? 'en' : 'tr'); setOpen(false) }}
-                  className="flex items-center gap-2 text-slate-400 text-sm py-2 px-2 w-full hover:text-white">
-                  {lang === 'tr' ? '🇬🇧 English' : '🇹🇷 Türkçe'}
-                </button>
-              </div>
+                  <button onClick={() => { handleSignOut(); setOpen(false) }}
+                    className="flex items-center gap-2 text-slate-400 hover:text-orange-400 text-sm py-2 px-2 text-left w-full hover:bg-slate-700/50 rounded-lg">
+                    <LogOut className="w-4 h-4" />
+                    Çıkış Yap
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <Link href="/giris" onClick={() => setOpen(false)} className="text-slate-300 text-sm py-2 px-2">
+                  {t.nav.login}
+                </Link>
+                <Link href="/uye-ol" onClick={() => setOpen(false)}
+                  className="bg-orange-500 text-white text-sm font-semibold px-4 py-2.5 rounded-lg text-center">
+                  {t.nav.register}
+                </Link>
+              </>
+            )}
+
+            {/* Separator 3 + Language toggle mobile */}
+            <div className="pt-2 mt-2 border-t border-slate-700/50">
+              <button
+                onClick={() => { setLang(lang === 'tr' ? 'en' : 'tr'); setOpen(false) }}
+                className="flex items-center gap-2 text-slate-400 text-sm py-2 px-2 w-full hover:text-white">
+                {lang === 'tr' ? '🇬🇧 English' : '🇹🇷 Türkçe'}
+              </button>
             </div>
           </div>
         </div>
