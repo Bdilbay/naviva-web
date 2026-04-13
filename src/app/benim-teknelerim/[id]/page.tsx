@@ -10,7 +10,7 @@ import { ArrowLeft, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
 interface Boat {
   id: string
   name: string
-  boat_type: string
+  type: string
   year?: number
   length_m?: number
   image_url?: string
@@ -151,7 +151,7 @@ export default function BoatDetailPage() {
 
         const { data, error: fetchError } = await supabase
           .from('boats')
-          .select('id, name, boat_type, year, length_m, image_url, status')
+          .select('id, name, type, year, length_m, image_url, status')
           .eq('id', boatId)
           .eq('user_id', session.user.id)
           .single()
@@ -236,7 +236,7 @@ export default function BoatDetailPage() {
               <div className="md:col-span-2">
                 <div className="mb-6">
                   <h1 className="text-4xl font-bold text-white mb-2">{boat.name}</h1>
-                  <p className="text-slate-400 text-lg">{boat.boat_type}</p>
+                  <p className="text-slate-400 text-lg">{boat.type}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-6">
