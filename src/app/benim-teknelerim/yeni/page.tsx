@@ -132,7 +132,7 @@ export default function NewBoatPage() {
           {
             user_id: session.user.id,
             name: formData.name.trim(),
-            boat_type: formData.type,
+            type: formData.type,
             year: formData.year ? parseInt(formData.year) : null,
             length_m: formData.lengthM ? parseFloat(formData.lengthM) : null,
             beam_m: formData.beamM ? parseFloat(formData.beamM) : null,

@@ -75,7 +75,7 @@ export default function BannersAdminPage() {
     const filePath = `banners/${fileName}`
 
     const { error: uploadError } = await supabase.storage
-      .from('banners')
+      .from('boat_images')
       .upload(filePath, file)
 
     if (uploadError) {
@@ -83,7 +83,7 @@ export default function BannersAdminPage() {
     }
 
     const { data: publicData } = supabase.storage
-      .from('banners')
+      .from('boat_images')
       .getPublicUrl(filePath)
 
     return publicData?.publicUrl || ''

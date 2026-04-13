@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, Save, Trash2, Check } from 'lucide-react'
 
 interface EditFormData {
   title: string
@@ -11,6 +11,11 @@ interface EditFormData {
   category: string
   price?: number
   status: string
+}
+
+interface SuccessModal {
+  show: boolean
+  message: string
 }
 
 const CATEGORIES = [
@@ -39,6 +44,10 @@ export default function EditListingPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [userId, setUserId] = useState<string>('')
+  const [successModal, setSuccessModal] = useState<SuccessModal>({
+    show: false,
+    message: '',
+  })
 
   useEffect(() => {
     const checkAuthAndFetchListing = async () => {
@@ -105,8 +114,13 @@ export default function EditListingPage() {
 
       if (error) throw error
 
-      alert('İlan başarıyla güncellendi')
-      router.push('/benim-ilanlarim')
+      setSuccessModal({
+        show: true,
+        message: 'İlanınız güncellenmiştir',
+      })
+      setTimeout(() => {
+        router.push('/benim-ilanlarim')
+      }, 2000)
     } catch (error) {
       console.error('Error saving listing:', error)
       alert('İlan kaydedilirken hata oluştu')
@@ -130,8 +144,13 @@ export default function EditListingPage() {
 
       if (error) throw error
 
-      alert('İlan başarıyla silindi')
-      router.push('/benim-ilanlarim')
+      setSuccessModal({
+        show: true,
+        message: 'İlan başarıyla silindi',
+      })
+      setTimeout(() => {
+        router.push('/benim-ilanlarim')
+      }, 2000)
     } catch (error) {
       console.error('Error deleting listing:', error)
       alert('İlan silinirken hata oluştu')
@@ -276,6 +295,54 @@ export default function EditListingPage() {
             </button>
           </div>
         </form>
+
+        {/* Success Modal */}
+        {successModal.show && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="animate-fade-in">
+              <div
+                onClick={() => setSuccessModal({ ...successModal, show: false })}
+                className="bg-slate-800/95 border border-orange-500/30 rounded-2xl p-8 w-80 text-center cursor-pointer hover:border-orange-500/50 transition-all shadow-2xl"
+              >
+                <div className="flex justify-center mb-4">
+                  <div className="bg-orange-500/20 rounded-full p-4 animate-scale-in">
+                    <Check size={48} className="text-orange-400" />
+                  </div>
+                </div>
+                <p className="text-xl font-semibold text-white mb-2">{successModal.message}</p>
+                <p className="text-sm text-slate-400">Kapatmak için tıklayın</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Global styles for animations */}
+        <style>{`
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+            }
+            to {
+              opacity: 1;
+            }
+          }
+          @keyframes scaleIn {
+            from {
+              transform: scale(0.8);
+              opacity: 0;
+            }
+            to {
+              transform: scale(1);
+              opacity: 1;
+            }
+          }
+          .animate-fade-in {
+            animation: fadeIn 0.3s ease-out;
+          }
+          .animate-scale-in {
+            animation: scaleIn 0.4s ease-out;
+          }
+        `}</style>
       </div>
     </div>
   )
