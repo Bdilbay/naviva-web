@@ -5,7 +5,8 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, AlertCircle, ChevronDown, Edit2, Save, X, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, AlertCircle, ChevronDown, Edit2, Save, X, Plus, Trash2, Check, Info } from 'lucide-react'
+import { getFeaturedAnnouncement, type Announcement } from '@/services/announcement_service'
 
 interface Boat {
   id: string
@@ -45,6 +46,7 @@ const MODULE_CONFIG: Record<string, {
     fields: [
       { key: 'name', label: 'Tekne Adı', type: 'text' },
       { key: 'type', label: 'Tip', type: 'text' },
+      { key: 'status', label: 'Durum', type: 'select' },
       { key: 'flag', label: 'Bayrak', type: 'text' },
       { key: 'registration_no', label: 'Ruhsat No', type: 'text' },
       { key: 'harbor_registration_no', label: 'Liman Kayıt No', type: 'text' },
@@ -56,6 +58,8 @@ const MODULE_CONFIG: Record<string, {
       { key: 'engine_model', label: 'Motor Modeli', type: 'text' },
       { key: 'captain_name', label: 'Kaptan', type: 'text' },
       { key: 'home_port', label: 'Liman / Marina', type: 'text' },
+      { key: 'last_maintenance', label: 'Son Bakım Tarihi', type: 'date' },
+      { key: 'image_url', label: 'Tekne Resmi *', type: 'file' },
     ]
   },
   arizalar: {
@@ -65,8 +69,14 @@ const MODULE_CONFIG: Record<string, {
     fields: [
       { key: 'title', label: 'Başlık', type: 'text' },
       { key: 'description', label: 'Açıklama', type: 'textarea' },
+      { key: 'location', label: 'Konum', type: 'text' },
+      { key: 'category', label: 'Kategori', type: 'text' },
+      { key: 'date', label: 'Tarih', type: 'date' },
       { key: 'severity', label: 'Önem Derecesi', type: 'select' },
       { key: 'status', label: 'Durum', type: 'select' },
+      { key: 'master_name', label: 'Usta Adı', type: 'text' },
+      { key: 'actual_cost', label: 'Gerçek Maliyet (₺)', type: 'number' },
+      { key: 'image_url', label: 'Fotoğraf', type: 'file' },
     ]
   },
   gunluk: {
@@ -74,10 +84,25 @@ const MODULE_CONFIG: Record<string, {
     description: 'Yolculuk ve seyir notları',
     table: 'boat_logs',
     fields: [
-      { key: 'title', label: 'Başlık', type: 'text' },
-      { key: 'description', label: 'Açıklama', type: 'textarea' },
-      { key: 'date_time', label: 'Tarih & Saat', type: 'datetime' },
-      { key: 'location', label: 'Konum', type: 'text' },
+      { key: 'date', label: 'Tarih', type: 'date' },
+      { key: 'from_port', label: 'Kalkış Limanı', type: 'text' },
+      { key: 'to_port', label: 'Varış Limanı', type: 'text' },
+      { key: 'dep_time', label: 'Kalkış Saati (HH:mm)', type: 'text' },
+      { key: 'arr_time', label: 'Varış Saati (HH:mm)', type: 'text' },
+      { key: 'course_true', label: 'Gerçek Kurs (0-359°)', type: 'number' },
+      { key: 'speed_kn', label: 'Hız (kn)', type: 'number' },
+      { key: 'distance_nm', label: 'Mesafe (nm)', type: 'number' },
+      { key: 'wind_dir', label: 'Rüzgar Yönü', type: 'text' },
+      { key: 'wind_beaufort', label: 'Rüzgar Beaufort (0-12)', type: 'number' },
+      { key: 'wave_height_m', label: 'Dalga Yüksekliği (m)', type: 'number' },
+      { key: 'pressure_hpa', label: 'Basınç (hPa)', type: 'number' },
+      { key: 'visibility', label: 'Görüş Mesafesi', type: 'text' },
+      { key: 'eng_hours_start', label: 'Motor Saatleri (Başlangıç)', type: 'number' },
+      { key: 'eng_hours_end', label: 'Motor Saatleri (Bitiş)', type: 'number' },
+      { key: 'fuel_pct', label: 'Yakıt (%)', type: 'number' },
+      { key: 'water_pct', label: 'Su (%)', type: 'number' },
+      { key: 'battery_v', label: 'Pil Voltajı (V)', type: 'number' },
+      { key: 'notes', label: 'Notlar', type: 'textarea' },
     ]
   },
   rota: {
@@ -99,11 +124,15 @@ const MODULE_CONFIG: Record<string, {
     description: 'Periyodik bakım planı',
     table: 'boat_maintenance',
     fields: [
-      { key: 'item', label: 'Bakım Öğesi', type: 'text' },
+      { key: 'title', label: 'Başlık', type: 'text' },
       { key: 'description', label: 'Açıklama', type: 'textarea' },
+      { key: 'category', label: 'Kategori', type: 'text' },
       { key: 'interval_months', label: 'Aralık (Ay)', type: 'number' },
-      { key: 'next_date', label: 'Sonraki Bakım Tarihi', type: 'date' },
-      { key: 'priority', label: 'Öncelik', type: 'select' },
+      { key: 'due_date', label: 'Bitiş Tarihi', type: 'date' },
+      { key: 'status', label: 'Durum', type: 'select' },
+      { key: 'master_name', label: 'Usta Adı', type: 'text' },
+      { key: 'cost', label: 'Maliyet (₺)', type: 'number' },
+      { key: 'completed_date', label: 'Tamamlanma Tarihi', type: 'date' },
     ]
   },
   isler: {
@@ -113,9 +142,10 @@ const MODULE_CONFIG: Record<string, {
     fields: [
       { key: 'title', label: 'İş Başlığı', type: 'text' },
       { key: 'description', label: 'Açıklama', type: 'textarea' },
-      { key: 'completed_date', label: 'Tamamlanma Tarihi', type: 'date' },
+      { key: 'date', label: 'Tarih', type: 'date' },
+      { key: 'category', label: 'Kategori', type: 'select' },
+      { key: 'master_name', label: 'Usta/Teknisyen', type: 'text' },
       { key: 'cost', label: 'Maliyet (₺)', type: 'number' },
-      { key: 'technician', label: 'Teknisyen', type: 'text' },
     ]
   },
   harcamalar: {
@@ -123,10 +153,12 @@ const MODULE_CONFIG: Record<string, {
     description: 'Bakım ve onarım giderleri',
     table: 'boat_expenses',
     fields: [
-      { key: 'category', label: 'Kategori', type: 'text' },
+      { key: 'title', label: 'Başlık', type: 'text' },
       { key: 'description', label: 'Açıklama', type: 'textarea' },
+      { key: 'category', label: 'Kategori', type: 'select' },
       { key: 'amount', label: 'Tutar (₺)', type: 'number' },
       { key: 'date', label: 'Tarih', type: 'date' },
+      { key: 'notes', label: 'Notlar', type: 'textarea' },
     ]
   },
   kondisyon: {
@@ -134,13 +166,15 @@ const MODULE_CONFIG: Record<string, {
     description: 'Tekne durumu ve sağlık raporları',
     table: 'boat_condition',
     fields: [
-      { key: 'hull_condition', label: 'Gövde Durumu', type: 'text' },
-      { key: 'engine_condition', label: 'Motor Durumu', type: 'text' },
-      { key: 'rigging_condition', label: 'Rigging Durumu', type: 'text' },
-      { key: 'interior_condition', label: 'İç Durumu', type: 'text' },
-      { key: 'overall_rating', label: 'Genel Puan', type: 'number' },
+      { key: 'title', label: 'Başlık', type: 'text' },
+      { key: 'date', label: 'Kontrol Tarihi', type: 'date' },
+      { key: 'hull_score', label: 'Gövde Puanı (0-10)', type: 'number' },
+      { key: 'engine_score', label: 'Motor Puanı (0-10)', type: 'number' },
+      { key: 'electrical_score', label: 'Elektrik Puanı (0-10)', type: 'number' },
+      { key: 'deck_score', label: 'Güverte Puanı (0-10)', type: 'number' },
+      { key: 'interior_score', label: 'İç Mekan Puanı (0-10)', type: 'number' },
+      { key: 'rigging_score', label: 'Donanım Puanı (0-10)', type: 'number' },
       { key: 'notes', label: 'Notlar', type: 'textarea' },
-      { key: 'checked_date', label: 'Kontrol Tarihi', type: 'date' },
     ]
   },
   crew: {
@@ -149,9 +183,12 @@ const MODULE_CONFIG: Record<string, {
     table: 'boat_crew',
     fields: [
       { key: 'name', label: 'Ad Soyad', type: 'text' },
-      { key: 'role', label: 'Rol', type: 'text' },
+      { key: 'role', label: 'Rol', type: 'select' },
+      { key: 'photo_url', label: 'Fotoğraf *', type: 'file' },
       { key: 'phone', label: 'Telefon', type: 'tel' },
       { key: 'email', label: 'Email', type: 'email' },
+      { key: 'skills', label: 'Yeterlilikler', type: 'text' },
+      { key: 'notes', label: 'Notlar', type: 'textarea' },
     ]
   },
   ustalar: {
@@ -161,6 +198,7 @@ const MODULE_CONFIG: Record<string, {
     fields: [
       { key: 'name', label: 'Ad Soyad', type: 'text' },
       { key: 'specialty', label: 'Uzmanlık', type: 'text' },
+      { key: 'photo_url', label: 'Fotoğraf *', type: 'file' },
       { key: 'phone', label: 'Telefon', type: 'tel' },
       { key: 'email', label: 'Email', type: 'email' },
       { key: 'notes', label: 'Notlar', type: 'textarea' },
@@ -172,11 +210,14 @@ const MODULE_CONFIG: Record<string, {
     table: 'boat_equipment',
     fields: [
       { key: 'name', label: 'Ekipman Adı', type: 'text' },
-      { key: 'type', label: 'Tip', type: 'text' },
       { key: 'brand', label: 'Marka', type: 'text' },
       { key: 'model', label: 'Model', type: 'text' },
       { key: 'serial_number', label: 'Seri No', type: 'text' },
+      { key: 'category', label: 'Kategori', type: 'select' },
       { key: 'purchase_date', label: 'Satın Alma Tarihi', type: 'date' },
+      { key: 'warranty_expiry', label: 'Garanti Bitiş Tarihi', type: 'date' },
+      { key: 'location', label: 'Konum (Tekne)', type: 'text' },
+      { key: 'image_url', label: 'Fotoğraf', type: 'file' },
       { key: 'notes', label: 'Notlar', type: 'textarea' },
     ]
   },
@@ -185,9 +226,11 @@ const MODULE_CONFIG: Record<string, {
     description: 'Tekne envanteri ve malzemeleri',
     table: 'boat_inventory',
     fields: [
-      { key: 'item_name', label: 'Öğe Adı', type: 'text' },
-      { key: 'quantity', label: 'Miktar', type: 'number' },
-      { key: 'category', label: 'Kategori', type: 'text' },
+      { key: 'name', label: 'Ürün Adı', type: 'text' },
+      { key: 'category', label: 'Kategori', type: 'select' },
+      { key: 'unit', label: 'Birim', type: 'text' },
+      { key: 'qty', label: 'Adet', type: 'number' },
+      { key: 'min_qty', label: 'Minimum Adet', type: 'number' },
       { key: 'location', label: 'Konum', type: 'text' },
       { key: 'notes', label: 'Notlar', type: 'textarea' },
     ]
@@ -197,9 +240,10 @@ const MODULE_CONFIG: Record<string, {
     description: 'Tekne fotoğraf galerisi',
     table: 'boat_photos',
     fields: [
-      { key: 'title', label: 'Başlık', type: 'text' },
-      { key: 'image_url', label: 'Resim URL', type: 'text' },
-      { key: 'category', label: 'Kategori', type: 'text' },
+      { key: 'title', label: 'Albüm Başlığı', type: 'text' },
+      { key: 'description', label: 'Açıklama', type: 'textarea' },
+      { key: 'date', label: 'Tarih', type: 'date' },
+      { key: 'image_url', label: 'Fotoğraf *', type: 'file' },
     ]
   },
   belgeler: {
@@ -207,10 +251,11 @@ const MODULE_CONFIG: Record<string, {
     description: 'Tekne belgeleri ve sertifikaları',
     table: 'boat_documents',
     fields: [
-      { key: 'document_name', label: 'Belge Adı', type: 'text' },
-      { key: 'file_url', label: 'Dosya URL', type: 'text' },
-      { key: 'document_type', label: 'Belge Türü', type: 'text' },
+      { key: 'title', label: 'Belge Adı', type: 'text' },
+      { key: 'description', label: 'Açıklama', type: 'textarea' },
+      { key: 'category', label: 'Belge Türü', type: 'select' },
       { key: 'expiry_date', label: 'Son Geçerlilik Tarihi', type: 'date' },
+      { key: 'file_url', label: 'Belge Dosyası *', type: 'file' },
     ]
   },
   adb: {
@@ -218,11 +263,12 @@ const MODULE_CONFIG: Record<string, {
     description: 'ADB ve diğer sertifikalar',
     table: 'boat_adb',
     fields: [
-      { key: 'certificate_name', label: 'Sertifika Adı', type: 'text' },
-      { key: 'certificate_number', label: 'Sertifika No', type: 'text' },
-      { key: 'issue_date', label: 'Veriliş Tarihi', type: 'date' },
+      { key: 'title', label: 'Sertifika Adı', type: 'text' },
+      { key: 'type', label: 'Sertifika Tipi', type: 'select' },
+      { key: 'cert_no', label: 'Sertifika No', type: 'text' },
       { key: 'expiry_date', label: 'Son Geçerlilik Tarihi', type: 'date' },
-      { key: 'issuer', label: 'Veren Kuruluş', type: 'text' },
+      { key: 'notes', label: 'Notlar', type: 'textarea' },
+      { key: 'image_url', label: 'Fotoğraf', type: 'file' },
     ]
   },
 }
@@ -242,12 +288,46 @@ export default function ModulePage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [editingItem, setEditingItem] = useState<ModuleItem | null>(null)
   const [formData, setFormData] = useState<Record<string, any>>({})
+  const [activeFilter, setActiveFilter] = useState('all')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null)
 
   const config = MODULE_CONFIG[moduleKey] || MODULE_CONFIG.bilgiler
 
+  // Filter logic for different modules
+  const getFilteredItems = (): ModuleItem[] => {
+    if (moduleKey === 'arizalar') {
+      switch (activeFilter) {
+        case 'open': return items.filter(i => i.status === 'open')
+        case 'closed': return items.filter(i => i.status === 'closed')
+        case 'high': return items.filter(i => i.severity === 'high' && i.status === 'open')
+        default: return items
+      }
+    }
+    if (moduleKey === 'rota') {
+      switch (activeFilter) {
+        case 'planned': return items.filter(i => i.status === 'planned')
+        case 'active': return items.filter(i => i.status === 'active')
+        case 'completed': return items.filter(i => i.status === 'completed')
+        default: return items
+      }
+    }
+    return items
+  }
+
+  const filteredItems = getFilteredItems()
+
   useEffect(() => {
     fetchData()
+    if (moduleKey === 'adb') {
+      loadAnnouncement()
+    }
   }, [boatId, moduleKey, router])
+
+  const loadAnnouncement = async () => {
+    const ann = await getFeaturedAnnouncement('adb')
+    setAnnouncement(ann)
+  }
 
   const fetchData = async () => {
     try {
@@ -334,8 +414,13 @@ export default function ModulePage() {
       setIsEditing(false)
       setEditingItem(null)
       setFormData({})
+      setError('') // Clear any previous errors
       setShowSuccessModal(true)
-      setTimeout(() => setShowSuccessModal(false), 2000)
+      setTimeout(() => {
+        setShowSuccessModal(false)
+        // Navigate back to boat detail page
+        router.push(`/benim-teknelerim/${boatId}`)
+      }, 1500)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'İşlem başarısız')
     } finally {
@@ -361,6 +446,125 @@ export default function ModulePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Silme işlemi başarısız')
     }
+  }
+
+  const handleToggleStatus = async (item: ModuleItem) => {
+    if (!boat) return
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Oturum bulunamadı')
+
+      const newStatus = item.status === 'open' ? 'closed' : item.status === 'closed' ? 'open' : item.status === 'active' ? 'completed' : 'active'
+      const { error: updateError } = await supabase
+        .from(config.table)
+        .update({ status: newStatus })
+        .eq('id', item.id)
+        .eq('user_id', session.user.id)
+
+      if (updateError) throw updateError
+      setItems(items.map(i => i.id === item.id ? { ...i, status: newStatus } : i))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Durum güncellenemedi')
+    }
+  }
+
+  // Statistics helpers
+  const getStats = (): Record<string, any> | null => {
+    if (moduleKey === 'arizalar') {
+      const openCount = items.filter(i => i.status === 'open').length
+      const closedCount = items.filter(i => i.status === 'closed').length
+      const criticalCount = items.filter(i => i.severity === 'high' && i.status === 'open').length
+      return { openCount, closedCount, criticalCount, type: 'faults' }
+    }
+    if (moduleKey === 'rota') {
+      const plannedCount = items.filter(i => i.status === 'planned').length
+      const activeCount = items.filter(i => i.status === 'active').length
+      const completedCount = items.filter(i => i.status === 'completed').length
+      return { plannedCount, activeCount, completedCount, type: 'routes' }
+    }
+    if (moduleKey === 'bakim') {
+      const highPriority = items.filter(i => i.priority === 'high').length
+      const mediumPriority = items.filter(i => i.priority === 'medium').length
+      const totalMaintenance = items.length
+      return { highPriority, mediumPriority, totalMaintenance, type: 'maintenance' }
+    }
+    if (moduleKey === 'isler') {
+      const totalTasks = items.length
+      const totalCost = items.reduce((sum, i) => sum + (i.cost || 0), 0)
+      return { totalTasks, totalCost, type: 'tasks' }
+    }
+    if (moduleKey === 'harcamalar') {
+      const totalExpenses = items.length
+      const totalAmount = items.reduce((sum, i) => sum + (i.amount || 0), 0)
+      return { totalExpenses, totalAmount, type: 'expenses' }
+    }
+    if (moduleKey === 'kondisyon') {
+      const avgRating = items.length > 0 ? Math.round(items.reduce((sum, i) => sum + (i.overall_rating || 0), 0) / items.length) : 0
+      const totalInspections = items.length
+      return { avgRating, totalInspections, type: 'condition' }
+    }
+    if (moduleKey === 'crew') {
+      const totalCrew = items.length
+      return { totalCrew, type: 'crew' }
+    }
+    if (moduleKey === 'ustalar') {
+      const totalMasters = items.length
+      return { totalMasters, type: 'masters' }
+    }
+    if (moduleKey === 'ekipmanlar') {
+      const totalEquipment = items.length
+      return { totalEquipment, type: 'equipment' }
+    }
+    if (moduleKey === 'envanter') {
+      const totalItems = items.length
+      const totalQuantity = items.reduce((sum, i) => sum + (i.quantity || 0), 0)
+      return { totalItems, totalQuantity, type: 'inventory' }
+    }
+    if (moduleKey === 'fotograflar') {
+      const totalPhotos = items.length
+      return { totalPhotos, type: 'photos' }
+    }
+    if (moduleKey === 'belgeler') {
+      const totalDocuments = items.length
+      const expiringDocuments = items.filter(i => {
+        if (!i.expiry_date) return false
+        const expiry = new Date(i.expiry_date)
+        const today = new Date()
+        const thirtyDaysFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
+        return expiry <= thirtyDaysFromNow && expiry > today
+      }).length
+      return { totalDocuments, expiringDocuments, type: 'documents' }
+    }
+    if (moduleKey === 'adb') {
+      const totalCertificates = items.length
+      const expiringCerts = items.filter(i => {
+        if (!i.expiry_date) return false
+        const expiry = new Date(i.expiry_date)
+        const today = new Date()
+        const thirtyDaysFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
+        return expiry <= thirtyDaysFromNow && expiry > today
+      }).length
+      return { totalCertificates, expiringCerts, type: 'adb' }
+    }
+    return null
+  }
+
+  const stats = getStats()
+
+  // Helper to group items by month
+  const groupByMonth = (items: ModuleItem[]) => {
+    const grouped: Record<string, ModuleItem[]> = {}
+    items.forEach(item => {
+      let dateField = item.date_time || item.completed_date || item.date || item.created_at
+      if (dateField) {
+        const date = new Date(dateField)
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+        if (!grouped[key]) grouped[key] = []
+        grouped[key].push(item)
+      }
+    })
+    return Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0]))
   }
 
   if (loading) {
@@ -389,49 +593,73 @@ export default function ModulePage() {
     )
   }
 
+  // Group items for modules that need chronological grouping
+  const shouldGroupByMonth = ['gunluk', 'isler', 'harcamalar'].includes(moduleKey)
+  const groupedItems = shouldGroupByMonth ? groupByMonth(filteredItems) : []
+  const showMonthGrouping = shouldGroupByMonth && groupedItems.length > 0
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <Link href={`/benim-teknelerim/${boatId}`}
-            className="flex items-center gap-2 text-slate-400 hover:text-white mb-4 transition-colors">
-            <ArrowLeft size={20} />
-            Tekneye Dön: {boat?.name}
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2">{config.title}</h1>
-              <p className="text-slate-400 text-lg">{config.description}</p>
-            </div>
-            {!isEditing && moduleKey !== 'bilgiler' && (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-6 md:p-8" style={{ paddingTop: '104px' }}>
+      <div className="max-w-5xl mx-auto">
+        {/* Header with Action Buttons */}
+        <div className="mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="flex-1">
+            <h1 className="text-4xl font-bold text-white mb-2">{config.title}</h1>
+            <p className="text-slate-400">{config.description}</p>
+          </div>
+
+          {/* Action Buttons - same row as header */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 whitespace-nowrap">
+            <Link href={`/benim-teknelerim/${boatId}`}
+              className="inline-flex items-center justify-center sm:justify-start gap-2 px-3 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg font-medium text-sm transition-colors">
+              <ArrowLeft size={16} />
+              <span className="hidden sm:inline">Geri Dön</span>
+            </Link>
+            {moduleKey !== 'bilgiler' && (
               <button
                 onClick={() => {
                   setEditingItem(null)
                   setFormData({})
-                  setIsEditing(true)
+                  setIsModalOpen(true)
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                className="flex items-center justify-center sm:justify-start gap-2 px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium text-sm transition-colors"
               >
-                <Plus size={18} />
-                Ekle
+                <Plus size={16} />
+                <span className="hidden sm:inline">Ekle</span>
               </button>
             )}
-            {!isEditing && moduleKey === 'bilgiler' && (
+            {moduleKey === 'bilgiler' && (
               <button
                 onClick={() => {
                   setEditingItem(null)
                   setFormData(boat || {})
-                  setIsEditing(true)
+                  setIsModalOpen(true)
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                className="flex items-center justify-center sm:justify-start gap-2 px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium text-sm transition-colors"
               >
-                <Edit2 size={18} />
-                Düzenle
+                <Edit2 size={16} />
+                <span className="hidden sm:inline">Düzenle</span>
               </button>
             )}
           </div>
         </div>
+
+        {/* ADB Announcement Banner */}
+        {moduleKey === 'adb' && announcement && (
+          <div className="mb-6 p-4 bg-orange-500/15 border border-orange-500/50 rounded-lg flex items-start gap-3 hover:bg-orange-500/20 transition-colors cursor-pointer"
+            onClick={() => announcement.link_url && window.open(announcement.link_url, '_blank')}>
+            <Info size={20} className="text-orange-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-orange-200 font-semibold text-sm">{announcement.title}</h3>
+              {announcement.content && (
+                <p className="text-orange-100/70 text-sm mt-1 line-clamp-2">{announcement.content}</p>
+              )}
+            </div>
+            {announcement.link_url && (
+              <span className="text-orange-400 text-xs mt-0.5 flex-shrink-0">→</span>
+            )}
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-3">
@@ -440,171 +668,187 @@ export default function ModulePage() {
           </div>
         )}
 
-        {/* Edit Form or List */}
-        {isEditing ? (
-          <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 mb-6">
-            <div className="space-y-4">
-              {config.fields.map(field => (
-                <div key={field.key}>
-                  <label className="text-sm text-slate-400 block mb-2">{field.label}</label>
-                  {field.type === 'textarea' ? (
-                    <textarea
-                      value={formData[field.key] || ''}
-                      onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                      className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                      rows={3}
-                    />
-                  ) : field.type === 'select' ? (
-                    <select
-                      value={formData[field.key] || ''}
-                      onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                      className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    >
-                      <option value="">Seçiniz</option>
-                      {field.key === 'severity' && [
-                        { value: 'low', label: 'Düşük' },
-                        { value: 'medium', label: 'Orta' },
-                        { value: 'high', label: 'Yüksek' },
-                      ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      {field.key === 'status' && (moduleKey === 'arizalar' ? [
-                        { value: 'open', label: 'Açık' },
-                        { value: 'in_progress', label: 'Devam Ediyor' },
-                        { value: 'closed', label: 'Kapalı' },
-                      ] : [
-                        { value: 'planned', label: 'Planlandı' },
-                        { value: 'active', label: 'Aktif' },
-                        { value: 'completed', label: 'Tamamlandı' },
-                      ]).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      {field.key === 'priority' && [
-                        { value: 'low', label: 'Düşük' },
-                        { value: 'medium', label: 'Orta' },
-                        { value: 'high', label: 'Yüksek' },
-                      ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  ) : (
-                    <input
-                      type={field.type}
-                      value={formData[field.key] || ''}
-                      onChange={(e) => setFormData({ ...formData, [field.key]: field.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value })}
-                      className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-4 mt-6">
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-              >
-                {isSaving ? (
+        {/* Boat Details View */}
+        {moduleKey === 'bilgiler' && boat && !isModalOpen ? (
+          <BoatDetailsView boat={boat} config={config} />
+        ) : moduleKey !== 'bilgiler' && !isModalOpen ? (
+          <>
+            {/* Statistics Dashboard */}
+            {stats && items.length > 0 && (
+              <div className="mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+                {stats.type === 'faults' && (
                   <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Kaydediliyor...
-                  </>
-                ) : (
-                  <>
-                    <Save size={20} />
-                    Kaydet
+                    <StatBox value={stats.openCount || 0} label="Açık" color="bg-red-500/20 border-red-500/50" textColor="text-red-400" />
+                    <StatBox value={stats.closedCount || 0} label="Kapalı" color="bg-green-500/20 border-green-500/50" textColor="text-green-400" />
+                    <StatBox value={stats.criticalCount || 0} label="Kritik" color="bg-orange-500/20 border-orange-500/50" textColor="text-orange-400" />
                   </>
                 )}
-              </button>
-              <button
-                onClick={() => {
-                  setIsEditing(false)
-                  setEditingItem(null)
-                  setFormData({})
-                }}
-                disabled={isSaving}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-              >
-                <X size={20} />
-                İptal
-              </button>
-            </div>
-          </div>
-        ) : moduleKey === 'bilgiler' && boat ? (
-          <BoatDetailsView boat={boat} config={config} />
-        ) : items.length > 0 ? (
-          <div className="space-y-4">
-            {items.map(item => (
-              <div key={item.id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-white mb-2">
-                      {item.title || item.name || item.item || item.document_name || item.certificate_name || `Öğe ${item.id.slice(0, 8)}`}
-                    </h3>
-                    {item.description && <p className="text-slate-400 text-sm mb-2">{item.description}</p>}
-                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-400">
-                      {config.fields.filter(f => f.key !== 'title' && f.key !== 'name' && f.key !== 'item' && f.key !== 'description').slice(0, 4).map(field => (
-                        item[field.key] && <div key={field.key}><span className="text-slate-500">{field.label}:</span> {String(item[field.key]).slice(0, 30)}</div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex gap-2 ml-4">
-                    <button
-                      onClick={() => {
+                {stats.type === 'routes' && (
+                  <>
+                    <StatBox value={stats.plannedCount || 0} label="Planlandı" color="bg-blue-500/20 border-blue-500/50" textColor="text-blue-400" />
+                    <StatBox value={stats.activeCount || 0} label="Aktif" color="bg-orange-500/20 border-orange-500/50" textColor="text-orange-400" />
+                    <StatBox value={stats.completedCount || 0} label="Tamamlandı" color="bg-green-500/20 border-green-500/50" textColor="text-green-400" />
+                  </>
+                )}
+                {stats.type === 'maintenance' && (
+                  <>
+                    <StatBox value={stats.highPriority || 0} label="Yüksek Öncelik" color="bg-red-500/20 border-red-500/50" textColor="text-red-400" />
+                    <StatBox value={stats.mediumPriority || 0} label="Orta Öncelik" color="bg-orange-500/20 border-orange-500/50" textColor="text-orange-400" />
+                    <StatBox value={stats.totalMaintenance || 0} label="Toplam" color="bg-blue-500/20 border-blue-500/50" textColor="text-blue-400" />
+                  </>
+                )}
+                {stats.type === 'tasks' && (
+                  <>
+                    <StatBox value={stats.totalTasks || 0} label="İş Sayısı" color="bg-blue-500/20 border-blue-500/50" textColor="text-blue-400" />
+                    <StatBox value={`₺${stats.totalCost?.toLocaleString('tr-TR') || 0}`} label="Toplam Maliyet" color="bg-orange-500/20 border-orange-500/50" textColor="text-orange-400" isText />
+                  </>
+                )}
+                {stats.type === 'expenses' && (
+                  <>
+                    <StatBox value={stats.totalExpenses || 0} label="Harcama Sayısı" color="bg-red-500/20 border-red-500/50" textColor="text-red-400" />
+                    <StatBox value={`₺${stats.totalAmount?.toLocaleString('tr-TR') || 0}`} label="Toplam Tutar" color="bg-orange-500/20 border-orange-500/50" textColor="text-orange-400" isText />
+                  </>
+                )}
+                {stats.type === 'condition' && (
+                  <>
+                    <StatBox value={`${stats.avgRating || 0}/10`} label="Ort. Puanı" color="bg-blue-500/20 border-blue-500/50" textColor="text-blue-400" isText />
+                    <StatBox value={stats.totalInspections || 0} label="Muayene Sayısı" color="bg-green-500/20 border-green-500/50" textColor="text-green-400" />
+                  </>
+                )}
+                {stats.type === 'crew' && (
+                  <StatBox value={stats.totalCrew || 0} label="Toplam Mürettebat" color="bg-blue-500/20 border-blue-500/50" textColor="text-blue-400" />
+                )}
+                {stats.type === 'masters' && (
+                  <StatBox value={stats.totalMasters || 0} label="Toplam Usta" color="bg-orange-500/20 border-orange-500/50" textColor="text-orange-400" />
+                )}
+                {stats.type === 'equipment' && (
+                  <StatBox value={stats.totalEquipment || 0} label="Ekipman Sayısı" color="bg-purple-500/20 border-purple-500/50" textColor="text-purple-400" />
+                )}
+                {stats.type === 'inventory' && (
+                  <>
+                    <StatBox value={stats.totalItems || 0} label="Öğe Türü" color="bg-blue-500/20 border-blue-500/50" textColor="text-blue-400" />
+                    <StatBox value={stats.totalQuantity || 0} label="Toplam Miktar" color="bg-green-500/20 border-green-500/50" textColor="text-green-400" />
+                  </>
+                )}
+                {stats.type === 'photos' && (
+                  <StatBox value={stats.totalPhotos || 0} label="Toplam Fotoğraf" color="bg-cyan-500/20 border-cyan-500/50" textColor="text-cyan-400" />
+                )}
+                {stats.type === 'documents' && (
+                  <>
+                    <StatBox value={stats.totalDocuments || 0} label="Belge Sayısı" color="bg-blue-500/20 border-blue-500/50" textColor="text-blue-400" />
+                    {stats.expiringDocuments > 0 && <StatBox value={stats.expiringDocuments || 0} label="Sonu Yaklaşan" color="bg-red-500/20 border-red-500/50" textColor="text-red-400" />}
+                  </>
+                )}
+                {stats.type === 'adb' && (
+                  <>
+                    <StatBox value={stats.totalCertificates || 0} label="Sertifika Sayısı" color="bg-green-500/20 border-green-500/50" textColor="text-green-400" />
+                    {stats.expiringCerts > 0 && <StatBox value={stats.expiringCerts || 0} label="Sonu Yaklaşan" color="bg-red-500/20 border-red-500/50" textColor="text-red-400" />}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Filter Chips */}
+            {(moduleKey === 'arizalar' || moduleKey === 'rota') && items.length > 0 && (
+              <div className="mb-6 flex gap-3 overflow-x-auto pb-2">
+                {moduleKey === 'arizalar' ? (
+                  <>
+                    <FilterChip label="Tümü" value="all" active={activeFilter === 'all'} onClick={() => setActiveFilter('all')} />
+                    <FilterChip label="Açık" value="open" active={activeFilter === 'open'} onClick={() => setActiveFilter('open')} color="from-red-500 to-red-600" />
+                    <FilterChip label="Kapalı" value="closed" active={activeFilter === 'closed'} onClick={() => setActiveFilter('closed')} color="from-green-500 to-green-600" />
+                    <FilterChip label="Kritik" value="high" active={activeFilter === 'high'} onClick={() => setActiveFilter('high')} color="from-orange-500 to-orange-600" />
+                  </>
+                ) : moduleKey === 'rota' ? (
+                  <>
+                    <FilterChip label="Tümü" value="all" active={activeFilter === 'all'} onClick={() => setActiveFilter('all')} />
+                    <FilterChip label="Planlandı" value="planned" active={activeFilter === 'planned'} onClick={() => setActiveFilter('planned')} color="from-blue-500 to-blue-600" />
+                    <FilterChip label="Aktif" value="active" active={activeFilter === 'active'} onClick={() => setActiveFilter('active')} color="from-orange-500 to-orange-600" />
+                    <FilterChip label="Tamamlandı" value="completed" active={activeFilter === 'completed'} onClick={() => setActiveFilter('completed')} color="from-green-500 to-green-600" />
+                  </>
+                ) : null}
+              </div>
+            )}
+
+            {/* Items List with Month Grouping */}
+            {filteredItems.length > 0 ? (
+              <div className="space-y-6">
+                {showMonthGrouping ? (
+                  groupedItems.map(([monthKey, monthItems]) => {
+                    const [year, month] = monthKey.split('-')
+                    const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+                    const monthLabel = `${monthNames[parseInt(month) - 1]} ${year}`
+
+                    return (
+                      <div key={monthKey}>
+                        <h3 className="text-slate-400 text-sm font-semibold mb-3 px-2">{monthLabel}</h3>
+                        <div className="space-y-3">
+                          {monthItems.map(item => (
+                            <ItemCard key={item.id} item={item} moduleKey={moduleKey} config={config} onEdit={() => {
+                              setEditingItem(item)
+                              setFormData(item)
+                              setIsModalOpen(true)
+                            }} onDelete={() => handleDelete(item.id)} onToggle={() => handleToggleStatus(item)} />
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div className="space-y-3">
+                    {filteredItems.map(item => (
+                      <ItemCard key={item.id} item={item} moduleKey={moduleKey} config={config} onEdit={() => {
                         setEditingItem(item)
                         setFormData(item)
-                        setIsEditing(true)
-                      }}
-                      className="p-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded-lg transition-colors"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="p-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                        setIsModalOpen(true)
+                      }} onDelete={() => handleDelete(item.id)} onToggle={() => handleToggleStatus(item)} />
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-12 text-center">
-            <p className="text-slate-400 mb-6">Henüz kayıt bulunmamaktadır</p>
-            <button
-              onClick={() => {
+            ) : (
+              <EmptyState onAdd={() => {
                 setEditingItem(null)
                 setFormData({})
-                setIsEditing(true)
-              }}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-            >
-              <Plus size={20} />
-              Yeni Kayıt Ekle
-            </button>
-          </div>
-        )}
+                setIsModalOpen(true)
+              }} />
+            )}
+          </>
+        ) : null}
 
-        {/* Back Buttons */}
-        <div className="mt-8 flex gap-4">
-          <Link href={`/benim-teknelerim/${boatId}`}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-            Modüllere Dön
-          </Link>
-          <Link href="/benim-teknelerim"
-            className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors">
-            Teknelerim
-          </Link>
-        </div>
+        {/* Edit Form Modal */}
+        {isModalOpen && (
+          <EditFormModal
+            item={editingItem}
+            moduleKey={moduleKey}
+            config={config}
+            formData={formData}
+            onFormChange={(data) => setFormData(data)}
+            onSave={handleSave}
+            onCancel={() => {
+              setIsModalOpen(false)
+              setEditingItem(null)
+              setFormData({})
+            }}
+            isSaving={isSaving}
+            boatId={boatId}
+          />
+        )}
 
         {/* Success Modal */}
         {showSuccessModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="animate-fade-in">
-              <div className="bg-slate-800/95 border border-blue-500/30 rounded-2xl p-8 w-80 text-center cursor-pointer hover:border-blue-500/50 transition-all shadow-2xl">
+              <div
+                onClick={() => setShowSuccessModal(false)}
+                className="bg-slate-800/95 border border-orange-500/30 rounded-2xl p-8 w-80 text-center cursor-pointer hover:border-orange-500/50 transition-all shadow-2xl"
+              >
                 <div className="flex justify-center mb-4">
-                  <div className="bg-blue-500/20 rounded-full p-4 animate-scale-in">
-                    <Save size={48} className="text-blue-400" />
+                  <div className="bg-orange-500/20 rounded-full p-4 animate-scale-in">
+                    <Check size={48} className="text-orange-400" />
                   </div>
                 </div>
-                <p className="text-xl font-semibold text-white">Kaydedildi</p>
+                <p className="text-xl font-semibold text-white mb-2">Kaydedildi</p>
+                <p className="text-sm text-slate-400">Kapatmak için tıklayın</p>
               </div>
             </div>
           </div>
@@ -621,12 +865,16 @@ export default function ModulePage() {
   )
 }
 
+// Helper Components
+
 function BoatDetailsView({ boat, config }: { boat: Boat; config: any }) {
   const [expandedSections, setExpandedSections] = useState({
     identity: true,
     technical: false,
     connection: false,
+    equipment: false,
   })
+  const [equipmentChecked, setEquipmentChecked] = useState<Record<string, boolean>>({})
 
   return (
     <div className="space-y-4">
@@ -685,7 +933,111 @@ function BoatDetailsView({ boat, config }: { boat: Boat; config: any }) {
       >
         <InfoRow label="Kaptan" value={boat.captain_name || '—'} />
         <InfoRow label="Liman / Marina" value={boat.home_port || '—'} />
+        <InfoRow label="Son Bakım" value={boat.last_maintenance ? new Date(boat.last_maintenance).toLocaleDateString('tr-TR') : '—'} />
+        <InfoRow label="Durum" value={
+          boat.status === 'maintenance' ? '🔧 Bakımda' :
+          boat.status === 'inactive' ? '❌ Pasif' :
+          '✅ Aktif'
+        } />
       </AccordionSection>
+
+      <AccordionSection
+        title="ZORUNLU EKİPMANLAR"
+        expanded={expandedSections.equipment}
+        onToggle={() => setExpandedSections(s => ({ ...s, equipment: !s.equipment }))}
+        trailing={
+          <span className="text-orange-400 font-semibold text-sm">
+            {Object.values(equipmentChecked).filter(Boolean).length} / 14
+          </span>
+        }
+      >
+        <div className="px-4 py-3 text-sm space-y-2">
+          <RequiredEquipmentItem
+            name="Can Yeleği (kişi başı)"
+            checked={equipmentChecked['life_jacket'] || false}
+            onChange={(checked) => setEquipmentChecked(s => ({ ...s, life_jacket: checked }))}
+          />
+          <RequiredEquipmentItem
+            name="Yangın Söndürücü (2 kg)"
+            checked={equipmentChecked['fire_ext_1'] || false}
+            onChange={(checked) => setEquipmentChecked(s => ({ ...s, fire_ext_1: checked }))}
+          />
+          <RequiredEquipmentItem
+            name="Çapa + Zincir/Halat"
+            checked={equipmentChecked['anchor'] || false}
+            onChange={(checked) => setEquipmentChecked(s => ({ ...s, anchor: checked }))}
+          />
+          <RequiredEquipmentItem
+            name="Kürek (2 adet)"
+            checked={equipmentChecked['oar'] || false}
+            onChange={(checked) => setEquipmentChecked(s => ({ ...s, oar: checked }))}
+          />
+          <RequiredEquipmentItem
+            name="Kova"
+            checked={equipmentChecked['bucket'] || false}
+            onChange={(checked) => setEquipmentChecked(s => ({ ...s, bucket: checked }))}
+          />
+          <RequiredEquipmentItem
+            name="Düdük / Korna"
+            checked={equipmentChecked['whistle'] || false}
+            onChange={(checked) => setEquipmentChecked(s => ({ ...s, whistle: checked }))}
+          />
+          <RequiredEquipmentItem
+            name="Seyir Fenerleri"
+            checked={equipmentChecked['nav_lights'] || false}
+            onChange={(checked) => setEquipmentChecked(s => ({ ...s, nav_lights: checked }))}
+          />
+          <RequiredEquipmentItem
+            name="İlk Yardım Çantası"
+            checked={equipmentChecked['first_aid'] || false}
+            onChange={(checked) => setEquipmentChecked(s => ({ ...s, first_aid: checked }))}
+          />
+          <RequiredEquipmentItem
+            name="Can Simidi + Halat"
+            checked={equipmentChecked['life_ring'] || false}
+            onChange={(checked) => setEquipmentChecked(s => ({ ...s, life_ring: checked }))}
+          />
+          <RequiredEquipmentItem
+            name="El Meşalesi Kırmızı (3)"
+            checked={equipmentChecked['flare_hand'] || false}
+            onChange={(checked) => setEquipmentChecked(s => ({ ...s, flare_hand: checked }))}
+          />
+          <RequiredEquipmentItem
+            name="Sintine Pompası"
+            checked={equipmentChecked['bilge_pump'] || false}
+            onChange={(checked) => setEquipmentChecked(s => ({ ...s, bilge_pump: checked }))}
+          />
+          <RequiredEquipmentItem
+            name="Pusula"
+            checked={equipmentChecked['compass'] || false}
+            onChange={(checked) => setEquipmentChecked(s => ({ ...s, compass: checked }))}
+          />
+          <RequiredEquipmentItem
+            name="VHF Telsiz (Kanal 16)"
+            checked={equipmentChecked['vhf_radio'] || false}
+            onChange={(checked) => setEquipmentChecked(s => ({ ...s, vhf_radio: checked }))}
+          />
+          <RequiredEquipmentItem
+            name="Seyir Haritası"
+            checked={equipmentChecked['nav_chart'] || false}
+            onChange={(checked) => setEquipmentChecked(s => ({ ...s, nav_chart: checked }))}
+          />
+        </div>
+      </AccordionSection>
+    </div>
+  )
+}
+
+function RequiredEquipmentItem({ name, checked, onChange }: { name: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="w-4 h-4 rounded border-slate-600 text-orange-500 focus:ring-offset-slate-900 cursor-pointer"
+      />
+      <label className="flex-1 text-slate-300 cursor-pointer">{name}</label>
     </div>
   )
 }
@@ -695,11 +1047,13 @@ function AccordionSection({
   expanded,
   onToggle,
   children,
+  trailing,
 }: {
   title: string
   expanded: boolean
   onToggle: () => void
   children: React.ReactNode
+  trailing?: React.ReactNode
 }) {
   return (
     <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
@@ -708,10 +1062,13 @@ function AccordionSection({
         className="w-full flex items-center justify-between p-4 hover:bg-slate-700/30 transition-colors text-left"
       >
         <h3 className="text-orange-400 font-semibold text-sm tracking-wide">{title}</h3>
-        <ChevronDown
-          size={18}
-          className={`text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
-        />
+        <div className="flex items-center gap-3">
+          {trailing && <span>{trailing}</span>}
+          <ChevronDown
+            size={18}
+            className={`text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
+          />
+        </div>
       </button>
       {expanded && (
         <div className="border-t border-slate-700 divide-y divide-slate-700">
@@ -727,6 +1084,401 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center gap-3 px-4 py-3 text-sm">
       <span className="text-slate-400 flex-1">{label}</span>
       <span className="text-white font-semibold">{value}</span>
+    </div>
+  )
+}
+
+function StatBox({ value, label, color, textColor, isText = false }: { value: number | string; label: string; color: string; textColor: string; isText?: boolean }) {
+  return (
+    <div className={`px-4 py-3 rounded-lg border ${color}`}>
+      <div className={`${isText ? 'text-lg' : 'text-2xl'} font-bold ${textColor}`}>{value}</div>
+      <div className={`text-xs ${textColor} opacity-70`}>{label}</div>
+    </div>
+  )
+}
+
+function FilterChip({ label, value, active, onClick, color = 'from-slate-600 to-slate-700' }: { label: string; value: string; active: boolean; onClick: () => void; color?: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-4 py-2 rounded-full font-medium whitespace-nowrap transition-all ${
+        active
+          ? `bg-gradient-to-r ${color} text-white border border-white/30 shadow-lg`
+          : 'bg-slate-700/50 text-slate-300 border border-slate-600 hover:bg-slate-700'
+      }`}
+    >
+      {label}
+    </button>
+  )
+}
+
+function ItemCard({ item, moduleKey, config, onEdit, onDelete, onToggle }: { item: ModuleItem; moduleKey: string; config: any; onEdit: () => void; onDelete: () => void; onToggle: () => void }) {
+  const getStatusColor = (status: string) => {
+    if (['open', 'planned', 'active'].includes(status)) return 'bg-orange-500/20 border-orange-500/50 text-orange-400'
+    if (['closed', 'completed'].includes(status)) return 'bg-green-500/20 border-green-500/50 text-green-400'
+    return 'bg-blue-500/20 border-blue-500/50 text-blue-400'
+  }
+
+  const getSeverityColor = (severity: string) => {
+    if (severity === 'high') return 'bg-red-500/20 border-red-500/50 text-red-400'
+    if (severity === 'medium') return 'bg-orange-500/20 border-orange-500/50 text-orange-400'
+    return 'bg-blue-500/20 border-blue-500/50 text-blue-400'
+  }
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      'open': 'Açık',
+      'closed': 'Kapalı',
+      'active': 'Aktif',
+      'planned': 'Planlandı',
+      'completed': 'Tamamlandı',
+      'in_progress': 'Devam Ediyor',
+    }
+    return labels[status] || status
+  }
+
+  const getSeverityLabel = (severity: string) => {
+    const labels: Record<string, string> = { 'high': 'Kritik', 'medium': 'Orta', 'low': 'Düşük' }
+    return labels[severity] || severity
+  }
+
+  const getCardBorderColor = (moduleKey: string, severity?: string) => {
+    if (moduleKey === 'arizalar' && severity) {
+      if (severity === 'high') return 'border-red-500/40'
+      if (severity === 'medium') return 'border-orange-500/40'
+      return 'border-blue-500/40'
+    }
+    return 'border-white/20'
+  }
+
+  const title = item.title || item.name || item.item_name || item.document_name || item.certificate_name || `Öğe ${item.id.slice(0, 8)}`
+  const isClosed = item.status === 'closed' || item.status === 'completed'
+
+  return (
+    <div className={`rounded-xl border p-4 transition-all ${
+      isClosed
+        ? 'bg-white/5 border-white/15'
+        : `bg-white/10 ${getCardBorderColor(moduleKey, item.severity)}`
+    }`}>
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex gap-2 flex-wrap">
+            {moduleKey === 'arizalar' && item.severity && (
+              <span className={`px-2 py-1 rounded text-xs font-bold border ${getSeverityColor(item.severity)}`}>
+                {getSeverityLabel(item.severity)}
+              </span>
+            )}
+            {item.status && (
+              <span className={`px-2 py-1 rounded text-xs font-bold border ${getStatusColor(item.status)}`}>
+                {getStatusLabel(item.status)}
+              </span>
+            )}
+          </div>
+          <span className="text-white/40 text-xs whitespace-nowrap">
+            {item.date_time ? new Date(item.date_time).toLocaleDateString('tr-TR') : item.date ? new Date(item.date).toLocaleDateString('tr-TR') : item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : ''}
+          </span>
+        </div>
+
+        <h4 className={`text-base font-semibold ${isClosed ? 'text-white/60' : 'text-white'}`}>{title}</h4>
+
+        {item.description && (
+          <p className="text-white/60 text-sm line-clamp-2">{item.description}</p>
+        )}
+
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-white/40 space-x-3 flex flex-wrap gap-2">
+            {item.location && <span>📍 {item.location}</span>}
+            {item.cost && <span>₺ {item.cost}</span>}
+            {item.amount && <span>₺ {item.amount}</span>}
+            {item.quantity && <span>Miktar: {item.quantity}</span>}
+          </div>
+          <div className="flex gap-2">
+            {(moduleKey === 'arizalar' || moduleKey === 'rota') && (
+              <button onClick={onToggle} className="p-2 hover:bg-white/10 rounded transition-colors text-white/60 hover:text-white">
+                {item.status === 'open' || item.status === 'active' ? '✓' : '↻'}
+              </button>
+            )}
+            <button onClick={onEdit} className="p-2 hover:bg-white/10 rounded transition-colors text-orange-400 hover:text-orange-300">
+              <Edit2 size={16} />
+            </button>
+            <button onClick={onDelete} className="p-2 hover:bg-white/10 rounded transition-colors text-red-400 hover:text-red-300">
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave, onCancel, isSaving, boatId }: { item: ModuleItem | null; moduleKey: string; config: any; formData: Record<string, any>; onFormChange: (data: Record<string, any>) => void; onSave: () => void; onCancel: () => void; isSaving: boolean; boatId: string }) {
+  const router = useRouter()
+  const [uploadingField, setUploadingField] = useState<string | null>(null)
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldKey: string) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setUploadingField(fieldKey)
+    try {
+      const file = files[0]
+      const timestamp = Date.now()
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+
+      // Determine folder based on field and module
+      let folder = 'boat_files'
+      if (fieldKey === 'image_url' || moduleKey === 'fotograflar') {
+        folder = 'boat_photos'
+      } else if (fieldKey === 'file_url' || moduleKey === 'belgeler') {
+        folder = 'boat_documents'
+      } else if (moduleKey === 'crew' || moduleKey === 'ustalar') {
+        folder = 'crew-masters'
+      }
+
+      const filePath = `${folder}/${moduleKey}/${timestamp}-${safeName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('boat_images')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage
+        .from('boat_images')
+        .getPublicUrl(filePath)
+
+      onFormChange({ ...formData, [fieldKey]: data.publicUrl })
+    } catch (err) {
+      alert('Dosya yükleme hatası: ' + (err instanceof Error ? err.message : 'Bilinmeyen hata'))
+    } finally {
+      setUploadingField(null)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800/95 border border-slate-700 rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push(`/benim-teknelerim/${boatId}`)}
+              className="inline-flex items-center gap-2 px-3 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors text-sm"
+            >
+              <ArrowLeft size={16} />
+              Geri
+            </button>
+            <h2 className="text-2xl font-bold text-white">{item ? 'Düzenle' : 'Yeni Kayıt'}</h2>
+          </div>
+          <button onClick={onCancel} className="p-2 hover:bg-slate-700 rounded transition-colors">
+            <X size={20} className="text-slate-400" />
+          </button>
+        </div>
+
+        <div className="space-y-4 mb-6">
+          {config.fields.map((field: any) => (
+            <div key={field.key}>
+              <label className="block text-sm font-medium text-slate-300 mb-2">{field.label}</label>
+              {field.type === 'file' ? (
+                <div className="space-y-2">
+                  {formData[field.key] && (
+                    <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-slate-600">
+                      <Image
+                        src={formData[field.key]}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <label className="flex-1 px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-300 cursor-pointer hover:border-orange-500 transition-colors text-sm">
+                      {uploadingField === field.key ? (
+                        <span className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-slate-400 border-t-orange-500 rounded-full animate-spin" />
+                          Yükleniyor...
+                        </span>
+                      ) : (
+                        <span>Dosya Seç</span>
+                      )}
+                      <input
+                        type="file"
+                        accept={field.key === 'file_url' || moduleKey === 'belgeler' ? '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png' : 'image/*'}
+                        onChange={(e) => handleFileUpload(e, field.key)}
+                        className="hidden"
+                        disabled={uploadingField !== null}
+                      />
+                    </label>
+                    {formData[field.key] && (
+                      <input
+                        type="text"
+                        value={formData[field.key]}
+                        onChange={(e) => onFormChange({ ...formData, [field.key]: e.target.value })}
+                        placeholder="veya URL girin"
+                        className="flex-1 px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-orange-500 text-sm"
+                      />
+                    )}
+                  </div>
+                  {!formData[field.key] && (
+                    <input
+                      type="text"
+                      value=""
+                      onChange={(e) => onFormChange({ ...formData, [field.key]: e.target.value })}
+                      placeholder="veya URL girin"
+                      className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-orange-500 text-sm"
+                    />
+                  )}
+                </div>
+              ) : field.type === 'textarea' ? (
+                <textarea
+                  value={formData[field.key] || ''}
+                  onChange={(e) => onFormChange({ ...formData, [field.key]: e.target.value })}
+                  className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                  rows={3}
+                  placeholder={field.label}
+                />
+              ) : field.type === 'select' ? (
+                <select
+                  value={formData[field.key] || ''}
+                  onChange={(e) => onFormChange({ ...formData, [field.key]: e.target.value })}
+                  className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                >
+                  <option value="">Seçiniz</option>
+                  {field.key === 'status' && moduleKey === 'bilgiler' && [
+                    { value: 'active', label: 'Aktif' },
+                    { value: 'maintenance', label: 'Bakımda' },
+                    { value: 'inactive', label: 'Pasif' },
+                  ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {field.key === 'severity' && [
+                    { value: 'low', label: 'Düşük' },
+                    { value: 'medium', label: 'Orta' },
+                    { value: 'high', label: 'Yüksek' },
+                  ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {field.key === 'status' && moduleKey === 'arizalar' && [
+                    { value: 'open', label: 'Açık' },
+                    { value: 'in_progress', label: 'Devam Ediyor' },
+                    { value: 'closed', label: 'Kapalı' },
+                  ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {field.key === 'status' && moduleKey === 'rota' && [
+                    { value: 'planned', label: 'Planlandı' },
+                    { value: 'active', label: 'Aktif' },
+                    { value: 'completed', label: 'Tamamlandı' },
+                  ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {field.key === 'status' && moduleKey === 'bakim' && [
+                    { value: 'pending', label: 'Beklemede' },
+                    { value: 'done', label: 'Tamamlandı' },
+                  ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {field.key === 'category' && moduleKey === 'isler' && [
+                    { value: 'hull_repair', label: 'Gövde Tamiri' },
+                    { value: 'engine', label: 'Motor-Mekanik' },
+                    { value: 'electrical', label: 'Elektrik' },
+                    { value: 'paint', label: 'Boya & Pasta' },
+                    { value: 'flooring', label: 'Döşeme & Branda' },
+                    { value: 'deck', label: 'Güverte Donanım' },
+                    { value: 'chrome', label: 'Krom İşleri' },
+                    { value: 'furniture', label: 'Mobilya & İç' },
+                    { value: 'sailing', label: 'Yelken & Arma' },
+                    { value: 'land', label: 'Kara Bakımı' },
+                    { value: 'turnkey', label: 'Anahtar Teslim' },
+                    { value: 'other', label: 'Diğer' },
+                  ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {field.key === 'category' && moduleKey === 'harcamalar' && [
+                    { value: 'maintenance', label: 'Bakım' },
+                    { value: 'fuel', label: 'Yakıt' },
+                    { value: 'marina', label: 'Marina' },
+                    { value: 'insurance', label: 'Sigorta' },
+                    { value: 'equipment', label: 'Ekipman' },
+                    { value: 'repair', label: 'Tamir' },
+                    { value: 'other', label: 'Diğer' },
+                  ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {field.key === 'role' && [
+                    { value: 'captain', label: 'Kaptan' },
+                    { value: 'first_officer', label: 'Yardımcı Kaptan' },
+                    { value: 'deck_officer', label: 'Güverte Subayı' },
+                    { value: 'crew', label: 'Mürettebat' },
+                    { value: 'guest', label: 'Misafir' },
+                    { value: 'other', label: 'Diğer' },
+                  ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {field.key === 'category' && moduleKey === 'ekipmanlar' && [
+                    { value: 'navigation', label: 'Navigasyon' },
+                    { value: 'safety', label: 'Emniyet' },
+                    { value: 'engine', label: 'Motor' },
+                    { value: 'electrical', label: 'Elektrik' },
+                    { value: 'deck', label: 'Güverte' },
+                    { value: 'communication', label: 'Haberleşme' },
+                    { value: 'diving', label: 'Dalış' },
+                    { value: 'other', label: 'Diğer' },
+                  ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {field.key === 'category' && moduleKey === 'envanter' && [
+                    { value: 'safety', label: 'Emniyet' },
+                    { value: 'fuel_oil', label: 'Yakıt & Yağ' },
+                    { value: 'electrical', label: 'Elektrik' },
+                    { value: 'tools', label: 'Takım' },
+                    { value: 'cleaning', label: 'Temizlik' },
+                    { value: 'food', label: 'Gıda' },
+                    { value: 'first_aid', label: 'İlk Yardım' },
+                    { value: 'parts', label: 'Parça' },
+                    { value: 'other', label: 'Diğer' },
+                  ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {field.key === 'category' && moduleKey === 'belgeler' && [
+                    { value: 'license', label: 'Ruhsat' },
+                    { value: 'insurance', label: 'Sigorta' },
+                    { value: 'warranty', label: 'Garanti' },
+                    { value: 'invoice', label: 'Fatura' },
+                    { value: 'technical', label: 'Teknik Belge' },
+                    { value: 'contract', label: 'Sözleşme' },
+                    { value: 'other', label: 'Diğer' },
+                  ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {field.key === 'type' && moduleKey === 'adb' && [
+                    { value: 'adb', label: 'ADB' },
+                    { value: 'patent', label: 'Patent' },
+                    { value: 'vhf', label: 'VHF' },
+                    { value: 'cmas', label: 'CMAS (Dalış)' },
+                    { value: 'other', label: 'Diğer' },
+                  ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              ) : (
+                <input
+                  type={field.type}
+                  value={formData[field.key] || ''}
+                  onChange={(e) => onFormChange({ ...formData, [field.key]: field.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value })}
+                  className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                  placeholder={field.label}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onSave}
+            disabled={isSaving}
+            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+          >
+            {isSaving ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={18} />}
+            {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
+          </button>
+          <button onClick={onCancel} className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors">
+            İptal
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EmptyState({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div className="text-center py-12">
+      <div className="text-5xl mb-4">📭</div>
+      <p className="text-slate-400 mb-6">Henüz kayıt bulunmamaktadır</p>
+      <button
+        onClick={onAdd}
+        className="inline-flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors"
+      >
+        <Plus size={18} />
+        Yeni Kayıt Ekle
+      </button>
     </div>
   )
 }

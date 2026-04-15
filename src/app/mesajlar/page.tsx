@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { MessageSquare, Send, Search, Clock, User as UserIcon, Plus, X } from 'lucide-react'
+
+const POLLING_INTERVAL = 30000 // 30 seconds
 
 interface Conversation {
   id: string
@@ -44,6 +46,9 @@ export default function MessagesPage() {
   const [availableUsers, setAvailableUsers] = useState<UserOption[]>([])
   const [selectedUser, setSelectedUser] = useState<UserOption | null>(null)
   const [searchingUsers, setSearchingUsers] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [unreadByConversation, setUnreadByConversation] = useState<Record<string, number>>({})
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -60,6 +65,49 @@ export default function MessagesPage() {
 
     checkAuth()
   }, [router])
+
+  // Auto-focus search input when new conversation modal opens
+  useEffect(() => {
+    if (showNewConversation && searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }, [showNewConversation])
+
+  // Poll for new unread messages every 30 seconds
+  useEffect(() => {
+    if (!userId || conversations.length === 0) return
+
+    const interval = setInterval(() => {
+      _calculateUnreadCount(conversations, userId)
+    }, POLLING_INTERVAL)
+
+    return () => clearInterval(interval)
+  }, [userId, conversations])
+
+  // Real-time subscription for new messages
+  useEffect(() => {
+    if (!userId) return
+
+    // Unsubscribe from any existing channel first
+    supabase.removeAllChannels()
+
+    const channel = supabase
+      .channel('messages-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages' },
+        (payload) => {
+          console.log('New message event:', payload)
+          // Recalculate unread count immediately when new message arrives
+          _calculateUnreadCount(conversations, userId)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [userId, conversations])
 
   const fetchConversations = async (currentUserId: string) => {
     try {
@@ -108,6 +156,7 @@ export default function MessagesPage() {
 
           setConversations(formattedConversations)
           setLoading(false)
+          _calculateUnreadCount(formattedConversations, currentUserId)
           return
         }
       } catch (err) {
@@ -137,6 +186,7 @@ export default function MessagesPage() {
 
       setConversations(formattedConversations)
       setLoading(false)
+      _calculateUnreadCount(formattedConversations, currentUserId)
     } catch (error) {
       console.error('Error fetching conversations:', error)
       setLoading(false)
@@ -159,9 +209,56 @@ export default function MessagesPage() {
     }
   }
 
-  const handleSelectConversation = (convId: string) => {
+  const _calculateUnreadCount = async (convs: Conversation[], currentUserId: string) => {
+    try {
+      let total = 0
+      const unreadMap: Record<string, number> = {}
+
+      for (const conv of convs) {
+        const { data: messages, error } = await supabase
+          .from('messages')
+          .select('id', { count: 'exact' })
+          .eq('conversation_id', conv.id)
+          .neq('sender_id', currentUserId)
+          .eq('is_read', false)
+
+        if (!error && messages) {
+          const count = messages.length
+          total += count
+          unreadMap[conv.id] = count
+        } else if (error) {
+          console.error(`Error counting messages for conversation ${conv.id}:`, error)
+          unreadMap[conv.id] = 0
+        }
+      }
+      console.log('DEBUG: Total unread count:', total, 'By conversation:', unreadMap)
+      setUnreadCount(total)
+      setUnreadByConversation(unreadMap)
+    } catch (error) {
+      console.error('Error calculating unread count:', error)
+    }
+  }
+
+  const handleSelectConversation = async (convId: string) => {
     setSelectedConvId(convId)
     fetchMessages(convId)
+    // Mark messages as read
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .update({ is_read: true })
+        .eq('conversation_id', convId)
+        .neq('sender_id', userId)
+
+      if (!error) {
+        // Recalculate unread count immediately after marking as read
+        setTimeout(() => {
+          _calculateUnreadCount(conversations, userId)
+        }, 100)
+      }
+    } catch (error) {
+      console.error('Error marking messages as read:', error)
+    }
   }
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -201,25 +298,47 @@ export default function MessagesPage() {
   }
 
   const searchUsers = async (query: string) => {
-    if (!query.trim()) {
-      setAvailableUsers([])
-      return
-    }
-
     setSearchingUsers(true)
     try {
+      // Basit test: tüm kullanıcıları getir
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name')
         .neq('id', userId)
-        .ilike('full_name', `%${query}%`)
-        .limit(10)
+        .limit(100)
+
+      console.log('DEBUG: Got', data?.length, 'profiles, error:', error)
 
       if (error) throw error
 
-      setAvailableUsers(data || [])
+      const allUsers = data || []
+      console.log('DEBUG: All users:', allUsers.length)
+
+      // Eğer query boşsa hepsini göster
+      if (!query.trim()) {
+        setAvailableUsers(allUsers.slice(0, 20))
+        setSearchingUsers(false)
+        return
+      }
+
+      // Query varsa filtrele - başında olanları önce (trim ile temizle)
+      const lowerQuery = query.toLowerCase()
+
+      const startsWith = allUsers.filter(u =>
+        u.full_name?.trim().toLowerCase().startsWith(lowerQuery)
+      )
+
+      const contains = allUsers.filter(u => {
+        const name = u.full_name?.trim().toLowerCase() || ''
+        return name.includes(lowerQuery) && !name.startsWith(lowerQuery)
+      })
+
+      const filtered = [...startsWith, ...contains]
+      console.log('DEBUG: Filtered results:', filtered.length)
+      setAvailableUsers(filtered.slice(0, 10))
     } catch (error) {
       console.error('Error searching users:', error)
+      setAvailableUsers([])
     } finally {
       setSearchingUsers(false)
     }
@@ -284,7 +403,7 @@ export default function MessagesPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 pt-20 pb-12">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 pb-12" style={{ paddingTop: "104px" }}>
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
@@ -334,28 +453,36 @@ export default function MessagesPage() {
                   </p>
                 </div>
               ) : (
-                filteredConversations.map(conv => (
-                  <button
-                    key={conv.id}
-                    onClick={() => handleSelectConversation(conv.id)}
-                    className={`w-full text-left p-4 border-b border-slate-700 hover:bg-slate-700/50 transition-colors ${
-                      selectedConvId === conv.id ? 'bg-pink-500/20 border-l-2 border-l-pink-500' : ''
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-white flex items-center gap-2">
-                        <UserIcon size={14} className="text-pink-400" />
-                        {conv.other_user_name}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-400">
-                        {new Date(conv.last_message_at).toLocaleDateString('tr-TR')}
-                      </span>
-                      <Clock size={12} className="text-slate-500" />
-                    </div>
-                  </button>
-                ))
+                filteredConversations.map(conv => {
+                  const unreadInConv = unreadByConversation[conv.id] || 0
+                  return (
+                    <button
+                      key={conv.id}
+                      onClick={() => handleSelectConversation(conv.id)}
+                      className={`w-full text-left p-4 border-b border-slate-700 hover:bg-slate-700/50 transition-colors ${
+                        selectedConvId === conv.id ? 'bg-pink-500/20 border-l-2 border-l-pink-500' : ''
+                      } ${unreadInConv > 0 ? 'bg-slate-700/30' : ''}`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-white flex items-center gap-2">
+                          <UserIcon size={14} className="text-pink-400" />
+                          {conv.other_user_name}
+                          {unreadInConv > 0 && (
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 ml-auto text-xs font-bold leading-none text-white transform bg-red-600 rounded-full">
+                              {unreadInConv}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-400">
+                          {new Date(conv.last_message_at).toLocaleDateString('tr-TR')}
+                        </span>
+                        <Clock size={12} className="text-slate-500" />
+                      </div>
+                    </button>
+                  )
+                })
               )}
             </div>
           </div>
@@ -456,6 +583,7 @@ export default function MessagesPage() {
                   <div className="relative">
                     <Search className="absolute left-3 top-2.5 text-slate-500" size={18} />
                     <input
+                      ref={searchInputRef}
                       type="text"
                       placeholder="E-posta ile ara..."
                       onChange={(e) => searchUsers(e.target.value)}
@@ -498,7 +626,7 @@ export default function MessagesPage() {
                       >
                         <div className="flex items-center gap-2">
                           <UserIcon size={16} className="text-slate-400" />
-                          <span className="text-sm text-white">{user.email}</span>
+                          <span className="text-sm text-white">{user.full_name}</span>
                         </div>
                       </button>
                     ))

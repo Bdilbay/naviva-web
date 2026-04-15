@@ -27,6 +27,22 @@ This will create the following tables:
 - `message_reports` - Moderation reports
 - `user_blocks` - User blocking system
 
+### 2. Run the Banner System Migration
+
+Copy and paste the SQL from `supabase/migrations/002_banner_system.sql` into Supabase SQL Editor:
+
+1. Go to your Supabase project
+2. Click on "SQL Editor"
+3. Click "+ New Query"
+4. Paste the contents of `supabase/migrations/002_banner_system.sql`
+5. Click "Run"
+
+This will create:
+- `banners` - Ad banner management table with RLS policies
+- Indexes for efficient queries
+- Proper RLS policies for admin-only write access
+- Automatic updated_at timestamp updates
+
 ### 2. Verify Existing Tables
 
 The following tables should already exist from the mobile app setup:

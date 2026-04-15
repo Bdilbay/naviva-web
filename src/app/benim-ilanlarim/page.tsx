@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Trash2, Edit2, Plus, ShoppingCart, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { Trash2, Edit2, Plus, ShoppingCart, AlertCircle, Eye, EyeOff, Check } from 'lucide-react'
 
 interface Listing {
   id: string
@@ -23,6 +23,8 @@ export default function MyListingsPage() {
   const [userId, setUserId] = useState<string>('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all')
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -105,6 +107,11 @@ export default function MyListingsPage() {
       setListings(listings.map(l =>
         l.id === listingId ? { ...l, status: newStatus } : l
       ))
+
+      // Show success modal
+      setSuccessMessage(newStatus === 'inactive' ? 'Gizlendi' : 'Yayında')
+      setShowSuccessModal(true)
+      setTimeout(() => setShowSuccessModal(false), 2000)
     } catch (error) {
       console.error('Error updating listing:', error)
       alert('İlan güncellenirken hata oluştu')
@@ -119,7 +126,7 @@ export default function MyListingsPage() {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-8" style={{ paddingTop: "104px" }}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -160,7 +167,7 @@ export default function MyListingsPage() {
                   : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
               }`}
             >
-              Aktif ({listings.filter(l => l.is_active !== false).length})
+              Aktif ({listings.filter(l => l.status === 'active').length})
             </button>
             <button
               onClick={() => setFilterStatus('inactive')}
@@ -170,7 +177,7 @@ export default function MyListingsPage() {
                   : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
               }`}
             >
-              İnaktif ({listings.filter(l => l.is_active === false).length})
+              İnaktif ({listings.filter(l => l.status !== 'active').length})
             </button>
           </div>
         )}
@@ -238,11 +245,11 @@ export default function MyListingsPage() {
                     <div>
                       <p className="text-xs text-slate-400 mb-2">Durum</p>
                       <span className={`px-3 py-1 rounded-full text-xs font-medium inline-block border ${
-                        listing.is_active !== false
+                        listing.status === 'active'
                           ? 'bg-green-500/20 text-green-400 border-green-500/30'
                           : 'bg-red-500/20 text-red-400 border-red-500/30'
                       }`}>
-                        {listing.is_active !== false ? 'Aktif' : 'İnaktif'}
+                        {listing.status === 'active' ? 'Aktif' : 'İnaktif'}
                       </span>
                     </div>
                     <p className="text-xs text-slate-400 mt-3">
@@ -261,14 +268,14 @@ export default function MyListingsPage() {
                     </button>
 
                     <button
-                      onClick={() => handleToggleVisibility(listing.id, listing.is_active !== false)}
+                      onClick={() => handleToggleVisibility(listing.id, listing.status)}
                       className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm flex items-center justify-center gap-2 ${
-                        listing.is_active !== false
+                        listing.status === 'active'
                           ? 'bg-orange-600/20 text-orange-400 hover:bg-orange-600/30'
                           : 'bg-green-600/20 text-green-400 hover:bg-green-600/30'
                       }`}
                     >
-                      {listing.is_active !== false ? (
+                      {listing.status === 'active' ? (
                         <>
                           <EyeOff size={16} />
                           Gizle
@@ -316,6 +323,33 @@ export default function MyListingsPage() {
             </div>
           </div>
         )}
+
+        {/* Success Modal */}
+        {showSuccessModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="animate-fade-in">
+              <div
+                onClick={() => setShowSuccessModal(false)}
+                className="bg-slate-800/95 border border-orange-500/30 rounded-2xl p-8 w-80 text-center cursor-pointer hover:border-orange-500/50 transition-all shadow-2xl"
+              >
+                <div className="flex justify-center mb-4">
+                  <div className="bg-orange-500/20 rounded-full p-4 animate-scale-in">
+                    <Check size={48} className="text-orange-400" />
+                  </div>
+                </div>
+                <p className="text-xl font-semibold text-white mb-2">{successMessage}</p>
+                <p className="text-sm text-slate-400">Kapatmak için tıklayın</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <style>{`
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes scaleIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+          .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+          .animate-scale-in { animation: scaleIn 0.4s ease-out; }
+        `}</style>
       </div>
     </div>
   )

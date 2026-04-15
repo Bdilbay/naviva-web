@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Upload, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, Check, Upload } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { RequiredEquipmentDisplay } from '@/components/boat/RequiredEquipmentDisplay'
 
 const BOAT_TYPES = [
@@ -39,12 +40,18 @@ const FLAGS = [
   'Other'
 ]
 
-export default function NewBoatPage() {
+export default function EditBoatPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const params = useParams()
+  const boatId = params.id as string
+
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string>('')
+  const [currentImageUrl, setCurrentImageUrl] = useState<string>('')
 
   const [formData, setFormData] = useState({
     name: '',
@@ -62,6 +69,57 @@ export default function NewBoatPage() {
     harborRegistrationNo: '',
     status: 'active',
   })
+
+  useEffect(() => {
+    const fetchBoat = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+
+        if (!session) {
+          router.push('/giris?redirect=/benim-teknelerim')
+          return
+        }
+
+        const { data: boat, error: fetchError } = await supabase
+          .from('boats')
+          .select('*')
+          .eq('id', boatId)
+          .eq('user_id', session.user.id)
+          .single()
+
+        if (fetchError || !boat) {
+          setError('Tekne bulunamadı')
+          return
+        }
+
+        setFormData({
+          name: boat.name || '',
+          type: boat.type || 'Motorlu',
+          year: boat.year?.toString() || '',
+          lengthM: boat.length_m?.toString() || '',
+          beamM: boat.beam_m?.toString() || '',
+          draftM: boat.draft_m?.toString() || '',
+          engineModel: boat.engine_model || '',
+          flag: boat.flag || 'TR',
+          homePort: boat.home_port || '',
+          captainName: boat.captain_name || '',
+          hullMaterial: boat.hull_material || 'Fiberglass',
+          registrationNo: boat.registration_no || '',
+          harborRegistrationNo: boat.harbor_registration_no || '',
+          status: boat.status || 'active',
+        })
+
+        setCurrentImageUrl(boat.image_url || '')
+        setLoading(false)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Tekne yüklenirken hata oluştu'
+        setError(message)
+        setLoading(false)
+      }
+    }
+
+    fetchBoat()
+  }, [boatId, router])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -81,8 +139,8 @@ export default function NewBoatPage() {
     }
   }
 
-  const uploadImage = async (userId: string, boatId: string) => {
-    if (!imageFile) return null
+  const uploadImage = async (userId: string): Promise<string> => {
+    if (!imageFile) return currentImageUrl || ''
 
     const fileExt = imageFile.name.split('.').pop()
     const fileName = `boat_${boatId}_${Date.now()}.${fileExt}`
@@ -101,110 +159,131 @@ export default function NewBoatPage() {
       .from('boat_images')
       .getPublicUrl(filePath)
 
-    return publicData?.publicUrl || null
+    return publicData?.publicUrl || currentImageUrl || ''
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSaving(true)
     setError('')
-    setLoading(true)
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
 
       if (!session) {
-        router.push('/giris?redirect=/benim-teknelerim/yeni')
+        router.push('/giris?redirect=/benim-teknelerim')
         return
       }
 
-      // Validate required fields
       if (!formData.name.trim()) {
         throw new Error('Tekne adı gereklidir')
       }
 
-      if (!formData.type.trim()) {
-        throw new Error('Tekne türü gereklidir')
+      let imageUrl = currentImageUrl
+      if (imageFile) {
+        imageUrl = await uploadImage(session.user.id)
       }
 
-      // Insert boat record
-      const { data: boatData, error: boatError } = await supabase
+      const { error: updateError } = await supabase
         .from('boats')
-        .insert([
-          {
-            user_id: session.user.id,
-            name: formData.name.trim(),
-            type: formData.type,
-            year: formData.year ? parseInt(formData.year) : null,
-            length_m: formData.lengthM ? parseFloat(formData.lengthM) : null,
-            beam_m: formData.beamM ? parseFloat(formData.beamM) : null,
-            draft_m: formData.draftM ? parseFloat(formData.draftM) : null,
-            engine_model: formData.engineModel || null,
-            flag: formData.flag || null,
-            home_port: formData.homePort || null,
-            captain_name: formData.captainName || null,
-            hull_material: formData.hullMaterial || null,
-            registration_no: formData.registrationNo || null,
-            harbor_registration_no: formData.harborRegistrationNo || null,
-            status: formData.status,
-            image_url: null,
-          }
-        ])
-        .select()
-        .single()
+        .update({
+          name: formData.name.trim(),
+          type: formData.type,
+          year: formData.year ? parseInt(formData.year) : null,
+          length_m: formData.lengthM ? parseFloat(formData.lengthM) : null,
+          beam_m: formData.beamM ? parseFloat(formData.beamM) : null,
+          draft_m: formData.draftM ? parseFloat(formData.draftM) : null,
+          engine_model: formData.engineModel || null,
+          flag: formData.flag || null,
+          home_port: formData.homePort || null,
+          captain_name: formData.captainName || null,
+          hull_material: formData.hullMaterial || null,
+          registration_no: formData.registrationNo || null,
+          harbor_registration_no: formData.harborRegistrationNo || null,
+          status: formData.status,
+          image_url: imageUrl,
+        })
+        .eq('id', boatId)
+        .eq('user_id', session.user.id)
 
-      if (boatError) throw boatError
+      if (updateError) throw updateError
 
-      // Upload image if provided
-      if (imageFile && boatData) {
-        const imageUrl = await uploadImage(session.user.id, boatData.id)
+      setShowSuccessModal(true)
 
-        if (imageUrl) {
-          const { error: updateError } = await supabase
-            .from('boats')
-            .update({ image_url: imageUrl })
-            .eq('id', boatData.id)
-
-          if (updateError) {
-            console.error('Image URL update error:', updateError)
-          }
-        }
-      }
-
-      router.push('/benim-teknelerim')
+      setTimeout(() => {
+        router.push(`/benim-teknelerim/${boatId}`)
+      }, 2000)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Tekne oluşturulurken hata oluştu'
+      const message = err instanceof Error ? err.message : 'Tekne güncellenirken hata oluştu'
       setError(message)
-      console.error('Error creating boat:', err)
-    } finally {
-      setLoading(false)
+      setSaving(false)
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-8" style={{ paddingTop: "104px" }}>
       <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <Link href="/benim-teknelerim"
-            className="flex items-center gap-2 text-slate-400 hover:text-white mb-4 transition-colors">
-            <ArrowLeft size={20} />
-            Geri Dön
-          </Link>
-          <h1 className="text-4xl font-bold text-white mb-2">Yeni Tekne Oluştur</h1>
-          <p className="text-slate-400">Sahip olduğunuz tekneyi sisteme kaydedin</p>
-        </div>
+        <Link href={`/benim-teknelerim/${boatId}`}
+          className="flex items-center gap-2 text-blue-400 hover:text-blue-300 mb-6 transition-colors">
+          <ArrowLeft size={20} />
+          Geri Dön
+        </Link>
+        <h1 className="text-4xl font-bold text-white mb-2">Tekneyi Düzenle</h1>
+        <p className="text-slate-400 mb-8">Tekne bilgilerini güncelleyin</p>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
+            <p className="text-red-400">{error}</p>
+          </div>
+        )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8">
-          {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-3">
-              <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-red-400 text-sm">{error}</p>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Image Upload Section */}
+          <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8">
+            <h2 className="text-xl font-semibold text-white mb-6 pb-4 border-b border-slate-700">Tekne Fotoğrafı</h2>
+
+            <div className="space-y-4">
+              {(imagePreview || currentImageUrl) && (
+                <div className="relative w-full h-48 bg-slate-900 rounded-lg overflow-hidden">
+                  <Image
+                    src={imagePreview || currentImageUrl}
+                    alt="Tekne fotoğrafı"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-600 rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-8 h-8 text-slate-400 mb-2" />
+                    <p className="text-sm text-slate-300">Yeni fotoğraf yüklemek için tıklayın</p>
+                    <p className="text-xs text-slate-500 mt-1">PNG, JPG (Max. 5MB)</p>
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                  />
+                </label>
+              </div>
             </div>
-          )}
+          </div>
 
           {/* Basic Info Section */}
-          <div className="mb-8">
+          <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8">
             <h2 className="text-xl font-semibold text-white mb-6 pb-4 border-b border-slate-700">Temel Bilgiler</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -270,7 +349,7 @@ export default function NewBoatPage() {
           </div>
 
           {/* Dimensions Section */}
-          <div className="mb-8">
+          <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8">
             <h2 className="text-xl font-semibold text-white mb-6 pb-4 border-b border-slate-700">Boyutlar</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -325,7 +404,7 @@ export default function NewBoatPage() {
           </div>
 
           {/* Details Section */}
-          <div className="mb-8">
+          <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8">
             <h2 className="text-xl font-semibold text-white mb-6 pb-4 border-b border-slate-700">Tekne Detayları</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -359,26 +438,13 @@ export default function NewBoatPage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Kayıt No / Sicil No
+                  Kaptan Adı
                 </label>
                 <input
                   type="text"
-                  value={formData.registrationNo}
-                  onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
-                  placeholder="TUR-34-1234"
-                  className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Liman Kaydı No
-                </label>
-                <input
-                  type="text"
-                  value={formData.harborRegistrationNo}
-                  onChange={(e) => setFormData({ ...formData, harborRegistrationNo: e.target.value })}
-                  placeholder="Liman kaydı numarası"
+                  value={formData.captainName}
+                  onChange={(e) => setFormData({ ...formData, captainName: e.target.value })}
+                  placeholder="Kaptan adı"
                   className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -391,86 +457,96 @@ export default function NewBoatPage() {
                   type="text"
                   value={formData.homePort}
                   onChange={(e) => setFormData({ ...formData, homePort: e.target.value })}
-                  placeholder="Örn: Kalamış Marina, İstanbul"
+                  placeholder="İstanbul"
                   className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Kaptan Adı
+                  Tescil No
                 </label>
                 <input
                   type="text"
-                  value={formData.captainName}
-                  onChange={(e) => setFormData({ ...formData, captainName: e.target.value })}
-                  placeholder="Kaptan adı (varsa)"
+                  value={formData.registrationNo}
+                  onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
+                  placeholder="Tescil numarası"
                   className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Liman Tescil No
+                </label>
+                <input
+                  type="text"
+                  value={formData.harborRegistrationNo}
+                  onChange={(e) => setFormData({ ...formData, harborRegistrationNo: e.target.value })}
+                  placeholder="Liman tescil numarası"
+                  className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Durum
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                >
+                  <option value="active">Aktif</option>
+                  <option value="maintenance">Bakım Yapılıyor</option>
+                  <option value="inactive">Pasif</option>
+                </select>
               </div>
             </div>
           </div>
 
-          {/* Image Upload Section */}
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-white mb-6 pb-4 border-b border-slate-700">Tekne Fotoğrafı</h2>
-
-            <div className="border-2 border-dashed border-slate-600 rounded-lg p-8">
-              {imagePreview ? (
-                <div className="space-y-4">
-                  <img src={imagePreview} alt="Önizleme" className="w-full h-64 object-cover rounded-lg" />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setImageFile(null)
-                      setImagePreview('')
-                    }}
-                    className="w-full px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg font-medium transition-colors"
-                  >
-                    Fotoğrafı Kaldır
-                  </button>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center cursor-pointer">
-                  <Upload size={32} className="text-slate-500 mb-3" />
-                  <span className="text-slate-300 font-medium">Fotoğraf Yükle</span>
-                  <span className="text-slate-500 text-sm">PNG, JPG - maksimum 5MB</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                </label>
-              )}
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-4 pt-6 border-t border-slate-700">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="flex-1 px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
-            >
-              İptal
-            </button>
+          {/* Buttons */}
+          <div className="flex gap-3">
             <button
               type="submit"
-              disabled={loading}
-              className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Oluşturuluyor...
-                </>
-              ) : (
-                'Tekneyi Oluştur'
-              )}
+              disabled={saving}
+              className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saving ? 'Kaydediliyor...' : 'Kaydet'}
             </button>
+            <Link href={`/benim-teknelerim/${boatId}`}
+              className="px-6 py-3 border border-slate-600 text-slate-300 hover:text-white rounded-xl text-sm transition-colors">
+              İptal
+            </Link>
           </div>
         </form>
+
+        {/* Success Modal */}
+        {showSuccessModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="animate-fade-in">
+              <div
+                onClick={() => setShowSuccessModal(false)}
+                className="bg-slate-800/95 border border-blue-500/30 rounded-2xl p-8 w-80 text-center cursor-pointer hover:border-blue-500/50 transition-all shadow-2xl"
+              >
+                <div className="flex justify-center mb-4">
+                  <div className="bg-blue-500/20 rounded-full p-4 animate-scale-in">
+                    <Check size={48} className="text-blue-400" />
+                  </div>
+                </div>
+                <p className="text-xl font-semibold text-white mb-2">Tekne Güncellendi</p>
+                <p className="text-sm text-slate-400">Kapatmak için tıklayın</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <style>{`
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes scaleIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+          .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+          .animate-scale-in { animation: scaleIn 0.4s ease-out; }
+        `}</style>
       </div>
     </div>
   )

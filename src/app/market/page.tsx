@@ -4,30 +4,12 @@ import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Search, SlidersHorizontal, Ship, MapPin, ChevronRight, ChevronDown, ChevronUp, X, Plus, Heart, Check } from 'lucide-react'
+import { Search, SlidersHorizontal, Ship, MapPin, ChevronDown, ChevronUp, X, Plus, Heart, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Listing, CATEGORY_GROUPS } from '@/types'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 const SPECIALTIES = ['Motor Tamircisi', 'Elektrik', 'Yelken & Donanım', 'Ahşap İşleri', 'Temizlik']
-
-const EQUIPMENT_CATEGORIES = [
-  'Deniz Elektroniği (GPS, Balık Bulucu, VHF, Radar)',
-  'Motor Parçaları (Pervane, Yağ Filtresi, Yakıt)',
-  'Yelken Donanımı (Yelken, Halat, Vinç)',
-]
-
-const RENTAL_TYPES = [
-  'Charter / Tur',
-  'Günübirlik Tur',
-  'Haftalık Charter',
-  'Kabin Kiralama',
-  'Yelkenli Kiralama (Bareboat)',
-  'Yelkenli Kiralama (Kaptanlı)',
-  'Motoryat Kiralama (Günübirlik)',
-  'Motoryat Kiralama (Haftalık)',
-  'Özel Organizasyon',
-]
 
 export default function MarketPage() {
   return <Suspense fallback={<div className="pt-16 min-h-screen bg-slate-900" />}><MarketContent /></Suspense>
@@ -47,33 +29,52 @@ function MarketContent() {
   const [loading, setLoading] = useState(true)
   const [searchInput, setSearchInput] = useState(searchQ)
   const [openSection, setOpenSection] = useState<string | null>('satilik')
-  const [showcaseLimit, setShowcaseLimit] = useState(20)
+  const [showcasePage, setShowcasePage] = useState(0)
+  const [showcasePerPage, setShowcasePerPage] = useState(20)
 
   const activeGroup = CATEGORY_GROUPS.find(g => g.key === groupKey)
 
   const fetchListings = useCallback(async () => {
     setLoading(true)
-    let q = supabase.from('listings').select('*').eq('status', 'active')
-    if (activeGroup) q = q.in('category', activeGroup.categories)
-    if (boatType) q = q.eq('boat_type', boatType)
+    let q = supabase.from('listings').select('*').neq('status', 'sold')
+
+    // Eğer boatType bir kategori adıysa (boat_rent_daily, boat_tour vs), o kategoriye filtrele
+    const isCategory = boatType && ['boat_rent_daily', 'boat_rent_hourly', 'boat_tour', 'boat_fishing'].includes(boatType)
+
+    if (isCategory) {
+      // Spesifik kategori filtrele
+      q = q.eq('category', boatType)
+    } else if (activeGroup) {
+      // Grup kategorileri filtrele
+      q = q.in('category', activeGroup.categories)
+
+      // Sonra boat_type veya equipment_type'a göre filtrele
+      if (boatType) {
+        if (groupKey === 'ekipman') {
+          q = q.eq('equipment_type', boatType)
+        } else if (groupKey === 'satilik') {
+          q = q.eq('boat_type', boatType)
+        }
+      }
+    }
+
     if (searchQ) q = q.ilike('title', `%${searchQ}%`)
     const { data } = await q.order('created_at', { ascending: false }).limit(60)
     setListings((data as Listing[]) ?? [])
     setLoading(false)
-  }, [activeGroup, boatType, searchQ])
+  }, [activeGroup, boatType, searchQ, groupKey])
 
-  // Fetch showcase listings - random from all categories
+  // Fetch showcase listings - all listings except sold from all categories
   const fetchShowcase = useCallback(async () => {
     const { data } = await supabase
       .from('listings')
       .select('*')
-      .eq('status', 'active')
-      .limit(showcaseLimit * 2) // Fetch more to have buffer for shuffling
+      .neq('status', 'sold')
+      .order('created_at', { ascending: false })
+      .limit(200) // Fetch up to 200 listings for showcase
 
-    // Shuffle the results randomly
-    const shuffled = (data as Listing[])?.sort(() => Math.random() - 0.5) ?? []
-    setShowcaseListings(shuffled.slice(0, showcaseLimit))
-  }, [showcaseLimit])
+    setShowcaseListings((data as Listing[]) ?? [])
+  }, [])
 
   useEffect(() => {
     fetchListings()
@@ -174,12 +175,18 @@ function MarketContent() {
 
             {/* Section 3: Kiralık Tekne */}
             <SidebarSection title="Kiralık Tekne" icon={null} open={openSection === 'kiralik'} onToggle={() => toggleSection('kiralik')}>
-              {RENTAL_TYPES.map(type => (
-                <button key={type} onClick={() => navigate({ kategori: 'kiralik', q: type })}
-                  className="w-full text-left px-4 py-2 text-xs text-slate-400 hover:text-slate-300">
-                  {type}
-                </button>
-              ))}
+              <button onClick={() => navigate({ kategori: 'kiralik', tip: '' })}
+                className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${groupKey === 'kiralik' && !boatType ? 'text-orange-400 bg-orange-500/10' : 'text-slate-300 hover:text-white hover:bg-slate-700/50'}`}>
+                Tüm Kiralık
+              </button>
+              <button onClick={() => navigate({ kategori: 'kiralik', tip: boatType === 'boat_rent_daily' ? '' : 'boat_rent_daily' })}
+                className={`w-full text-left pl-8 pr-4 py-2 text-xs transition-colors ${boatType === 'boat_rent_daily' && groupKey === 'kiralik' ? 'text-orange-400' : 'text-slate-500 hover:text-slate-300'}`}>
+                Günlük Kiralık
+              </button>
+              <button onClick={() => navigate({ kategori: 'kiralik', tip: boatType === 'boat_rent_hourly' ? '' : 'boat_rent_hourly' })}
+                className={`w-full text-left pl-8 pr-4 py-2 text-xs transition-colors ${boatType === 'boat_rent_hourly' && groupKey === 'kiralik' ? 'text-orange-400' : 'text-slate-500 hover:text-slate-300'}`}>
+                Saatlik Kiralık
+              </button>
             </SidebarSection>
 
             {/* Section 4: Usta Kategorileri */}
@@ -197,12 +204,26 @@ function MarketContent() {
 
             {/* Section 5: Ekipman & Aksesuar */}
             <SidebarSection title="Ekipman & Aksesuar" icon={null} open={openSection === 'ekipman'} onToggle={() => toggleSection('ekipman')}>
-              {EQUIPMENT_CATEGORIES.map(cat => (
-                <button key={cat} onClick={() => navigate({ kategori: 'ekipman', q: cat })}
-                  className="w-full text-left px-4 py-2 text-xs text-slate-400 hover:text-slate-300">
-                  {cat}
-                </button>
-              ))}
+              <button onClick={() => navigate({ kategori: 'ekipman', tip: '' })}
+                className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${groupKey === 'ekipman' && !boatType ? 'text-orange-400 bg-orange-500/10' : 'text-slate-300 hover:text-white hover:bg-slate-700/50'}`}>
+                Tüm Ekipmanlar
+              </button>
+              {['motors', 'electrical', 'parts', 'navigation', 'deck', 'other'].map(type => {
+                const typeLabels: Record<string, string> = {
+                  motors: 'Deniz Motorları',
+                  electrical: 'Elektrik',
+                  parts: 'Motor Aksamı',
+                  navigation: 'Navigasyon',
+                  deck: 'Güverte',
+                  other: 'Diğer',
+                }
+                return (
+                  <button key={type} onClick={() => navigate({ kategori: 'ekipman', tip: boatType === type ? '' : type })}
+                    className={`w-full text-left pl-8 pr-4 py-2 text-xs transition-colors ${boatType === type && groupKey === 'ekipman' ? 'text-orange-400' : 'text-slate-500 hover:text-slate-300'}`}>
+                    {typeLabels[type]}
+                  </button>
+                )
+              })}
             </SidebarSection>
 
           </div>
@@ -215,26 +236,50 @@ function MarketContent() {
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-slate-300 text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
-                  <span className="text-orange-400">✨</span> VİTRİN İLANLARI
+                  <span className="text-orange-400">✨</span> VİTRİN İLANLARI ({showcaseListings.length})
                 </h2>
-                <div className="flex gap-2">
-                  {[20, 50].map(limit => (
+                <div className="flex gap-2 items-center">
+                  <div className="flex gap-1">
+                    {[20, 50, 100].map(num => (
+                      <button
+                        key={num}
+                        onClick={() => {
+                          setShowcasePerPage(num)
+                          setShowcasePage(0)
+                        }}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                          showcasePerPage === num
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-1 ml-4">
                     <button
-                      key={limit}
-                      onClick={() => setShowcaseLimit(limit)}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                        showcaseLimit === limit
-                          ? 'bg-orange-500 text-white'
-                          : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
-                      }`}
+                      onClick={() => setShowcasePage(Math.max(0, showcasePage - 1))}
+                      disabled={showcasePage === 0}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {limit}
+                      ← Önceki
                     </button>
-                  ))}
+                    <span className="px-3 py-1.5 text-xs text-slate-400">
+                      Sayfa {showcasePage + 1} / {Math.ceil(showcaseListings.length / showcasePerPage)}
+                    </span>
+                    <button
+                      onClick={() => setShowcasePage(showcasePage + 1)}
+                      disabled={showcasePage >= Math.ceil(showcaseListings.length / showcasePerPage) - 1}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Sonraki →
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {showcaseListings.map(l => (
+                {showcaseListings.slice(showcasePage * showcasePerPage, (showcasePage + 1) * showcasePerPage).map(l => (
                   <Link key={l.id} href={`/market/${l.id}`}
                     className="group relative rounded-xl overflow-hidden bg-slate-800/50 border border-slate-700/50 hover:border-orange-500/50 transition-all duration-300">
                     {l.photos?.[0] ? (
@@ -252,9 +297,6 @@ function MarketContent() {
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                     <div className="absolute inset-0 flex flex-col justify-between p-2">
-                      <div className="bg-orange-500/80 text-white text-xs font-bold px-2 py-1 rounded w-fit">
-                        ✨ VİTRİN
-                      </div>
                       <div>
                         <p className="text-white font-semibold text-xs line-clamp-2">{l.title}</p>
                         {l.price && (

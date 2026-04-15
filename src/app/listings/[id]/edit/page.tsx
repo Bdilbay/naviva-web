@@ -168,7 +168,7 @@ export default function EditListingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-8" style={{ paddingTop: "104px" }}>
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <button

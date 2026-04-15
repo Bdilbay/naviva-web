@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Save, Loader2 } from 'lucide-react'
+import { Save, Loader2, Check } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 const SPECIALTIES = [
@@ -140,7 +140,7 @@ export default function UstaDuzenlePage() {
   }
 
   return (
-    <div className="min-h-screen py-24 px-4">
+    <div className="min-h-screen py-24 px-4" style={{ paddingTop: '104px' }}>
       <div className="max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold text-white mb-2">{t.masterEdit.title}</h1>
         <p className="text-slate-400 text-sm mb-8">{t.masterEdit.subtitle}</p>
@@ -252,7 +252,6 @@ export default function UstaDuzenlePage() {
           </section>
 
           {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-          {success && <p className="text-green-400 text-sm text-center">{t.masterEdit.successSave}</p>}
 
           <div className="flex gap-3">
             <button type="submit" disabled={saving}
@@ -268,6 +267,33 @@ export default function UstaDuzenlePage() {
             )}
           </div>
         </form>
+
+        {/* Success Modal */}
+        {success && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="animate-fade-in">
+              <div
+                onClick={() => setSuccess(false)}
+                className="bg-slate-800/95 border border-orange-500/30 rounded-2xl p-8 w-80 text-center cursor-pointer hover:border-orange-500/50 transition-all shadow-2xl"
+              >
+                <div className="flex justify-center mb-4">
+                  <div className="bg-orange-500/20 rounded-full p-4 animate-scale-in">
+                    <Check size={48} className="text-orange-400" />
+                  </div>
+                </div>
+                <p className="text-xl font-semibold text-white mb-2">{t.masterEdit.successSave}</p>
+                <p className="text-sm text-slate-400">Kapatmak için tıklayın</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <style>{`
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes scaleIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+          .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+          .animate-scale-in { animation: scaleIn 0.4s ease-out; }
+        `}</style>
       </div>
     </div>
   )

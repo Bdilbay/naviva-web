@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Menu, X, LogOut, User, Heart, Settings, MessageSquare, Ship } from 'lucide-react'
+import { Menu, X, LogOut, User, Heart, Settings, MessageSquare, Ship, Bell } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -13,8 +13,42 @@ export default function Navbar() {
   const [open, setOpen] = useState(false)
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const { t, lang, setLang } = useLanguage()
   const router = useRouter()
+
+  const loadUnreadCount = async (userId: string) => {
+    try {
+      const { data: conversations } = await supabase
+        .from('conversations')
+        .select('id')
+        .or(`user_1_id.eq.${userId},user_2_id.eq.${userId}`)
+
+      if (!conversations) {
+        setUnreadCount(0)
+        return
+      }
+
+      let total = 0
+      for (const conv of conversations) {
+        const { data: messages } = await supabase
+          .from('messages')
+          .select('id', { count: 'exact' })
+          .eq('conversation_id', conv.id)
+          .neq('sender_id', userId)
+          .eq('is_read', false)
+
+        if (messages) {
+          total += messages.length
+        }
+      }
+      setUnreadCount(total)
+    } catch (error) {
+      console.error('Failed to load unread count:', error)
+    }
+  }
+
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     const checkAdminStatus = async (userId: string) => {
@@ -36,18 +70,68 @@ export default function Navbar() {
       setUser(session?.user ?? null)
       if (session?.user?.id) {
         checkAdminStatus(session.user.id)
+        loadUnreadCount(session.user.id)
       }
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
       if (session?.user?.id) {
         checkAdminStatus(session.user.id)
+        loadUnreadCount(session.user.id)
       } else {
         setIsAdmin(false)
+        setUnreadCount(0)
       }
     })
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
+
+  // Polling for unread count when user is logged in
+  useEffect(() => {
+    if (!user?.id) return
+
+    // Load immediately
+    loadUnreadCount(user.id)
+
+    // Set up polling interval
+    intervalRef.current = setInterval(() => {
+      loadUnreadCount(user.id)
+    }, 30000)
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [user?.id])
+
+  // Real-time subscription for new messages
+  useEffect(() => {
+    if (!user?.id) return
+
+    // Unsubscribe from any existing channel first
+    supabase.removeAllChannels()
+
+    const channel = supabase
+      .channel('messages-navbar')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages' },
+        (payload) => {
+          console.log('New message received:', payload)
+          // Recalculate unread count immediately
+          loadUnreadCount(user.id)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [user?.id])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -110,10 +194,20 @@ export default function Navbar() {
                   <Heart className="w-4 h-4" />
                   Favorilerim
                 </Link>
+                <Link href="/duyurular"
+                  className="flex items-center gap-1.5 text-slate-300 hover:text-yellow-400 text-sm font-medium px-3 py-1.5 transition-colors">
+                  <Bell className="w-4 h-4" />
+                  Duyurular
+                </Link>
                 <Link href="/mesajlar"
-                  className="flex items-center gap-1.5 text-slate-300 hover:text-pink-400 text-sm font-medium px-3 py-1.5 transition-colors">
+                  className="flex items-center gap-1.5 text-slate-300 hover:text-pink-400 text-sm font-medium px-3 py-1.5 transition-colors relative">
                   <MessageSquare className="w-4 h-4" />
                   Mesajlar
+                  {unreadCount > 0 && (
+                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1 -translate-y-1 bg-red-600 rounded-full">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
 
                 {/* User Dropdown */}
@@ -221,9 +315,14 @@ export default function Navbar() {
                   Favorilerim
                 </Link>
                 <Link href="/mesajlar" onClick={() => setOpen(false)}
-                  className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-pink-400">
+                  className="flex items-center gap-2 text-slate-300 text-sm py-2 px-2 hover:text-pink-400 relative">
                   <MessageSquare className="w-4 h-4" />
                   Mesajlar
+                  {unreadCount > 0 && (
+                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full ml-auto">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
 
                 <div className="border-t border-slate-700/50 my-2 pt-2">

@@ -5,7 +5,8 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, AlertCircle, ChevronDown, ChevronUp, Edit2 } from 'lucide-react'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface Boat {
   id: string
@@ -17,121 +18,43 @@ interface Boat {
   status: string
 }
 
-const MODULES = [
-  // Fixed top row
-  {
-    key: 'bilgiler',
-    name: 'Genel Bilgiler',
-    icon: '📋',
-    description: 'Tekne özellikleri ve detayları',
-    section: 'fixed'
-  },
-  {
-    key: 'arizalar',
-    name: 'Arıza Kayıtları',
-    icon: '⚠️',
-    description: 'Teknede oluşan arızalar ve sorunlar',
-    section: 'fixed'
-  },
-  {
-    key: 'gunluk',
-    name: 'Seyir Günlüğü',
-    icon: '📖',
-    description: 'Yolculuk ve seyir notları',
-    section: 'fixed'
-  },
-  {
-    key: 'rota',
-    name: 'Rota & Harita',
-    icon: '🗺️',
-    description: 'Seyir rotaları ve konumlar',
-    section: 'fixed'
-  },
-  // Bakım & Servis section (collapsible)
-  {
-    key: 'bakim',
-    name: 'Bakım Planı',
-    icon: '🛠️',
-    description: 'Periyodik bakım planı',
-    section: 'maintenance'
-  },
-  {
-    key: 'isler',
-    name: 'Yapılan İşler',
-    icon: '✅',
-    description: 'Tamamlanan bakım ve onarım işleri',
-    section: 'maintenance'
-  },
-  {
-    key: 'harcamalar',
-    name: 'Harcamalar',
-    icon: '💰',
-    description: 'Bakım ve onarım giderleri',
-    section: 'maintenance'
-  },
-  {
-    key: 'kondisyon',
-    name: 'Kondisyon',
-    icon: '📊',
-    description: 'Tekne durumu ve sağlık raporları',
-    section: 'maintenance'
-  },
-  // Tekne & Donanım section (collapsible)
-  {
-    key: 'crew',
-    name: 'Crew',
-    icon: '👥',
-    description: 'Gemi mürettebatı ve roller',
-    section: 'equipment'
-  },
-  {
-    key: 'ustalar',
-    name: 'Ustalar',
-    icon: '🔧',
-    description: 'İlişkili ustalar ve servisler',
-    section: 'equipment'
-  },
-  {
-    key: 'ekipmanlar',
-    name: 'Ekipmanlar',
-    icon: '⚙️',
-    description: 'Tekne ekipmanları ve sistemleri',
-    section: 'equipment'
-  },
-  {
-    key: 'envanter',
-    name: 'Envanter',
-    icon: '📦',
-    description: 'Tekne envanteri ve malzemeleri',
-    section: 'equipment'
-  },
-  {
-    key: 'fotograflar',
-    name: 'Fotoğraflar',
-    icon: '📸',
-    description: 'Tekne fotoğraf galerisi',
-    section: 'equipment'
-  },
-  {
-    key: 'belgeler',
-    name: 'Belgeler',
-    icon: '📄',
-    description: 'Tekne belgeleri ve sertifikaları',
-    section: 'equipment'
-  },
-  {
-    key: 'adb',
-    name: 'ADB/Sertifikalar',
-    icon: '🎖️',
-    description: 'ADB ve diğer sertifikalar',
-    section: 'equipment'
-  },
-]
+interface Module {
+  key: string
+  name: string
+  icon: string
+  description: string
+  section: 'fixed' | 'maintenance' | 'equipment'
+}
+
+function getModules(t: any): Module[] {
+  const m = t.boats.modules
+  return [
+    // Fixed top row
+    { key: 'bilgiler', icon: '📋', section: 'fixed', ...m.bilgiler },
+    { key: 'arizalar', icon: '⚠️', section: 'fixed', ...m.arizalar },
+    { key: 'gunluk', icon: '📖', section: 'fixed', ...m.gunluk },
+    { key: 'rota', icon: '🗺️', section: 'fixed', ...m.rota },
+    // Bakım & Servis section
+    { key: 'bakim', icon: '🛠️', section: 'maintenance', ...m.bakim },
+    { key: 'isler', icon: '✅', section: 'maintenance', ...m.isler },
+    { key: 'harcamalar', icon: '💰', section: 'maintenance', ...m.harcamalar },
+    { key: 'kondisyon', icon: '📊', section: 'maintenance', ...m.kondisyon },
+    // Tekne & Donanım section
+    { key: 'crew', icon: '👥', section: 'equipment', ...m.crew },
+    { key: 'ustalar', icon: '🔧', section: 'equipment', ...m.ustalar },
+    { key: 'ekipmanlar', icon: '⚙️', section: 'equipment', ...m.ekipmanlar },
+    { key: 'envanter', icon: '📦', section: 'equipment', ...m.envanter },
+    { key: 'fotograflar', icon: '📸', section: 'equipment', ...m.fotograflar },
+    { key: 'belgeler', icon: '📄', section: 'equipment', ...m.belgeler },
+    { key: 'adb', icon: '🎖️', section: 'equipment', ...m.adb },
+  ]
+}
 
 export default function BoatDetailPage() {
   const router = useRouter()
   const params = useParams()
   const boatId = params.id as string
+  const { t } = useLanguage()
 
   const [boat, setBoat] = useState<Boat | null>(null)
   const [loading, setLoading] = useState(true)
@@ -183,9 +106,9 @@ export default function BoatDetailPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-8">
         <div className="max-w-6xl mx-auto">
           <Link href="/benim-teknelerim"
-            className="flex items-center gap-2 text-slate-400 hover:text-white mb-4 transition-colors">
-            <ArrowLeft size={20} />
-            Geri Dön
+            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors mb-4">
+            <ArrowLeft size={18} />
+            ← Teknelerime Dön
           </Link>
           <div className="p-6 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-3">
             <AlertCircle size={24} className="text-red-400 flex-shrink-0 mt-0.5" />
@@ -196,20 +119,29 @@ export default function BoatDetailPage() {
     )
   }
 
-  const fixedModules = MODULES.filter(m => m.section === 'fixed')
-  const maintenanceModules = MODULES.filter(m => m.section === 'maintenance')
-  const equipmentModules = MODULES.filter(m => m.section === 'equipment')
+  const modules = getModules(t)
+  const fixedModules = modules.filter(m => m.section === 'fixed')
+  const maintenanceModules = modules.filter(m => m.section === 'maintenance')
+  const equipmentModules = modules.filter(m => m.section === 'equipment')
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-8" style={{ paddingTop: '104px' }}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <Link href="/benim-teknelerim"
-            className="flex items-center gap-2 text-slate-400 hover:text-white mb-4 transition-colors">
-            <ArrowLeft size={20} />
-            Geri Dön
-          </Link>
+          <div className="mb-6 flex items-center gap-3">
+            <Link href="/benim-teknelerim"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors">
+              <ArrowLeft size={18} />
+              Teknelerime Dön
+            </Link>
+            <button
+              onClick={() => router.push(`/benim-teknelerim/${boatId}/edit`)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600/50 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">
+              <Edit2 size={18} />
+              {t.boats.editButtonHeader}
+            </button>
+          </div>
 
           {/* Boat Banner */}
           <div className="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden mb-8">
@@ -266,7 +198,7 @@ export default function BoatDetailPage() {
 
         {/* Fixed Modules Grid */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6">Temel Modüller</h2>
+          <h2 className="text-2xl font-bold text-white mb-6">{t.boats.basicModules}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {fixedModules.map(module => (
               <Link
@@ -292,7 +224,7 @@ export default function BoatDetailPage() {
           >
             <div className="flex items-center gap-3">
               <span className="text-2xl">🛠️</span>
-              <h2 className="text-2xl font-bold text-white">Bakım & Servis</h2>
+              <h2 className="text-2xl font-bold text-white">{t.boats.maintenanceService}</h2>
             </div>
             {maintenanceOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
           </button>
@@ -324,7 +256,7 @@ export default function BoatDetailPage() {
           >
             <div className="flex items-center gap-3">
               <span className="text-2xl">⚙️</span>
-              <h2 className="text-2xl font-bold text-white">Tekne & Donanım</h2>
+              <h2 className="text-2xl font-bold text-white">{t.boats.boatEquipment}</h2>
             </div>
             {equipmentOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
           </button>

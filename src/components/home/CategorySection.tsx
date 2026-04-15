@@ -4,12 +4,13 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 
-export function CategorySection({ title, count, subcategories }: {
+export function CategorySection({ title, count, subcategories, categoryKey }: {
   title: string
   count: number
-  subcategories: { name: string; count: number }[]
+  subcategories: { name: string; count: number; key?: string }[]
+  categoryKey?: string
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(true)
 
   return (
     <div>
@@ -25,15 +26,21 @@ export function CategorySection({ title, count, subcategories }: {
 
       {expanded && (
         <div className="pl-4 space-y-1 border-l border-slate-700/50 ml-2">
-          {subcategories.map(sub => (
-            <Link key={sub.name} href={`/market?kategori=${sub.name.toLowerCase()}`}
-              className="block py-2 px-3 rounded hover:bg-slate-800/40 transition-colors">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400 text-sm hover:text-slate-200 transition-colors">{sub.name}</span>
-                <span className="text-slate-600 text-xs">({sub.count})</span>
-              </div>
-            </Link>
-          ))}
+          {subcategories.map(sub => {
+            const href = sub.key
+              ? `/market?kategori=${categoryKey}&tip=${sub.key}`
+              : `/market?kategori=${categoryKey}`
+
+            return (
+              <Link key={sub.name} href={href}
+                className="block py-2 px-3 rounded hover:bg-slate-800/40 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-sm hover:text-slate-200 transition-colors">{sub.name}</span>
+                  <span className="text-slate-600 text-xs">({sub.count})</span>
+                </div>
+              </Link>
+            )
+          })}
         </div>
       )}
     </div>

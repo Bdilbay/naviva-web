@@ -110,7 +110,7 @@ export default function YeniIlanPage() {
     const files = e.currentTarget.files
     if (!files || files.length === 0) return
     if (!user) {
-      setPhotoError(ERROR_MESSAGES.AUTH.NOT_LOGGED_IN)
+      setPhotoError('Bu işlem için giriş yapmanız gerekir.')
       return
     }
 
@@ -272,7 +272,7 @@ export default function YeniIlanPage() {
   const stepLabels = [t.newListing.step1, t.newListing.step2, t.newListing.step3]
 
   return (
-    <div className="min-h-screen py-24 px-4">
+    <div className="min-h-screen py-24 px-4" style={{ paddingTop: '104px' }}>
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-8">

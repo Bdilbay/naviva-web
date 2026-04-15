@@ -7,10 +7,11 @@ import { getTranslations } from '@/lib/i18n/server'
 import type { Translations } from '@/lib/i18n'
 import { CategorySection } from '@/components/home/CategorySection'
 import BannerSlot from '@/components/BannerSlot'
+import AnnouncementsBanner from '@/components/AnnouncementsBanner'
 
 async function getRecentListings(): Promise<Listing[]> {
   const { data } = await supabase
-    .from('listings').select('*').eq('status', 'active')
+    .from('listings').select('*').neq('status', 'sold')
     .order('created_at', { ascending: false }).limit(6)
   return (data as Listing[]) ?? []
 }
@@ -22,16 +23,82 @@ async function getRecentMasters(): Promise<MasterProfile[]> {
 }
 
 async function getCategoryCounts() {
-  const { count: boatSaleCount } = await supabase
-    .from('listings').select('*', { count: 'exact', head: true }).eq('category', 'boat_sale').eq('status', 'active')
-  const { count: boatRentCount } = await supabase
-    .from('listings').select('*', { count: 'exact', head: true }).in('category', ['boat_rent_daily', 'boat_rent_hourly']).eq('status', 'active')
-  const { count: tourCount } = await supabase
-    .from('listings').select('*', { count: 'exact', head: true }).in('category', ['boat_tour', 'boat_fishing']).eq('status', 'active')
-  const { count: equipmentCount } = await supabase
-    .from('listings').select('*', { count: 'exact', head: true }).in('category', ['equipment_sale', 'equipment_rent']).eq('status', 'active')
+  try {
+    // Tüm ilanları getir (category, boat_type ve equipment_type ile)
+    const { data: allListings } = await supabase
+      .from('listings')
+      .select('category, boat_type, equipment_type')
 
-  return { boatSaleCount: boatSaleCount || 0, boatRentCount: boatRentCount || 0, tourCount: tourCount || 0, equipmentCount: equipmentCount || 0 }
+    if (!allListings) {
+      return {
+        boatSaleCount: 0,
+        boatRentCount: 0,
+        tourCount: 0,
+        equipmentCount: 0,
+        boatSaleByType: { motoryat: 0, yelkenli: 0, katamaran: 0, gulet: 0 },
+        boatRentByType: { daily: 0, hourly: 0 },
+        tourByType: { dayTrip: 0, fishing: 0 },
+        equipmentByType: { motors: 0, electrical: 0, parts: 0, navigation: 0, deck: 0, other: 0 },
+      }
+    }
+
+    // Satılık Tekne - boat_type'a göre say
+    const boatSales = allListings.filter((l: any) => l.category === 'boat_sale')
+    const boatSaleByType = {
+      motoryat: boatSales.filter((l: any) => l.boat_type?.toLowerCase().includes('motor')).length,
+      yelkenli: boatSales.filter((l: any) => l.boat_type?.toLowerCase().includes('yelken')).length,
+      katamaran: boatSales.filter((l: any) => l.boat_type?.toLowerCase().includes('katamaran')).length,
+      gulet: boatSales.filter((l: any) => l.boat_type?.toLowerCase().includes('gulet')).length,
+    }
+    const boatSaleCount = boatSales.length
+
+    // Kiralık Tekne - category'ye göre say
+    const boatRentDaily = allListings.filter((l: any) => l.category === 'boat_rent_daily').length
+    const boatRentHourly = allListings.filter((l: any) => l.category === 'boat_rent_hourly').length
+    const boatRentByType = { daily: boatRentDaily, hourly: boatRentHourly }
+    const boatRentCount = boatRentDaily + boatRentHourly
+
+    // Tur / Charter - category'ye göre say
+    const boatTour = allListings.filter((l: any) => l.category === 'boat_tour').length
+    const boatFishing = allListings.filter((l: any) => l.category === 'boat_fishing').length
+    const tourByType = { dayTrip: boatTour, fishing: boatFishing }
+    const tourCount = boatTour + boatFishing
+
+    // Ekipman - equipment_type'a göre say
+    const equipment = allListings.filter((l: any) => l.category === 'equipment_sale' || l.category === 'equipment_rent')
+    const equipmentByType = {
+      motors: equipment.filter((l: any) => l.equipment_type === 'motors').length,
+      electrical: equipment.filter((l: any) => l.equipment_type === 'electrical').length,
+      parts: equipment.filter((l: any) => l.equipment_type === 'parts').length,
+      navigation: equipment.filter((l: any) => l.equipment_type === 'navigation').length,
+      deck: equipment.filter((l: any) => l.equipment_type === 'deck').length,
+      other: equipment.filter((l: any) => l.equipment_type === 'other').length,
+    }
+    const equipmentCount = equipment.length
+
+    return {
+      boatSaleCount,
+      boatRentCount,
+      tourCount,
+      equipmentCount,
+      boatSaleByType,
+      boatRentByType,
+      tourByType,
+      equipmentByType,
+    }
+  } catch (error) {
+    console.error('Error fetching category counts:', error)
+    return {
+      boatSaleCount: 0,
+      boatRentCount: 0,
+      tourCount: 0,
+      equipmentCount: 0,
+      boatSaleByType: { motoryat: 0, yelkenli: 0, katamaran: 0, gulet: 0 },
+      boatRentByType: { daily: 0, hourly: 0 },
+      tourByType: { dayTrip: 0, fishing: 0 },
+      equipmentByType: { motors: 0, electrical: 0, parts: 0, navigation: 0, deck: 0, other: 0 },
+    }
+  }
 }
 
 export default async function HomePage() {
@@ -99,89 +166,91 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Banner Slot - Home Hero */}
+      {/* Banner - Full Width */}
       <section className="bg-slate-900 border-b border-slate-700/50 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <BannerSlot position="home_hero" className="h-48 sm:h-64 lg:h-72" />
+          <BannerSlot position="home_hero" className="h-48 sm:h-56 lg:h-64 rounded-lg" />
         </div>
       </section>
 
-      {/* Kategoriler + Son İlanlar */}
-      <section className="bg-slate-900/50 border-y border-slate-700/50 py-12">
+      {/* Kategoriler + Vitriin (İlanlar) */}
+      <section className="bg-slate-900/50 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Sol Sidebar - Kategoriler */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Sol 1/4 - Kategoriler (Expandable) */}
             <div className="lg:col-span-1">
-              <div className="sticky top-20">
+              <div className="sticky top-20 space-y-0.5 bg-slate-800/30 rounded-lg p-4">
                 <h3 className="text-white font-bold text-sm uppercase tracking-widest mb-4 text-orange-400">Tüm Kategoriler</h3>
 
-                <div className="space-y-0.5">
-                  {/* Satılık Tekne */}
-                  <CategorySection
-                    title="Satılık Tekne"
-                    count={counts.boatSaleCount}
-                    subcategories={[
-                      { name: 'Motoryat', count: Math.floor(counts.boatSaleCount * 0.4) },
-                      { name: 'Yelkenli', count: Math.floor(counts.boatSaleCount * 0.3) },
-                      { name: 'Katamaran', count: Math.floor(counts.boatSaleCount * 0.15) },
-                      { name: 'Gulet', count: Math.floor(counts.boatSaleCount * 0.15) },
-                    ]}
-                  />
+                {/* Satılık Tekne */}
+                <CategorySection
+                  title="Satılık Tekne"
+                  count={counts.boatSaleCount}
+                  categoryKey="satilik"
+                  subcategories={[
+                    { name: 'Motoryat', count: counts.boatSaleByType.motoryat, key: 'Motoryat' },
+                    { name: 'Yelkenli', count: counts.boatSaleByType.yelkenli, key: 'Yelkenli' },
+                    { name: 'Katamaran', count: counts.boatSaleByType.katamaran, key: 'Katamaran' },
+                    { name: 'Gulet', count: counts.boatSaleByType.gulet, key: 'Gulet' },
+                  ]}
+                />
 
-                  {/* Kiralık Tekne */}
-                  <CategorySection
-                    title="Kiralık Tekne"
-                    count={counts.boatRentCount}
-                    subcategories={[
-                      { name: 'Günlük Kiralık', count: Math.floor(counts.boatRentCount * 0.6) },
-                      { name: 'Saatlik Kiralık', count: Math.floor(counts.boatRentCount * 0.4) },
-                    ]}
-                  />
+                {/* Kiralık Tekne */}
+                <CategorySection
+                  title="Kiralık Tekne"
+                  count={counts.boatRentCount}
+                  categoryKey="kiralik"
+                  subcategories={[
+                    { name: 'Günlük Kiralık', count: counts.boatRentByType.daily, key: 'boat_rent_daily' },
+                    { name: 'Saatlik Kiralık', count: counts.boatRentByType.hourly, key: 'boat_rent_hourly' },
+                  ]}
+                />
 
-                  {/* Tur / Charter */}
-                  <CategorySection
-                    title="Tur / Charter"
-                    count={counts.tourCount}
-                    subcategories={[
-                      { name: 'Günübirlik Tur', count: Math.floor(counts.tourCount * 0.6) },
-                      { name: 'Balık Turu', count: Math.floor(counts.tourCount * 0.4) },
-                    ]}
-                  />
+                {/* Tur / Charter */}
+                <CategorySection
+                  title="Tur / Charter"
+                  count={counts.tourCount}
+                  categoryKey="tur"
+                  subcategories={[
+                    { name: 'Günübirlik Tur', count: counts.tourByType.dayTrip, key: 'boat_tour' },
+                    { name: 'Balık Turu', count: counts.tourByType.fishing, key: 'boat_fishing' },
+                  ]}
+                />
 
-                  {/* Ekipman */}
-                  <CategorySection
-                    title="Deniz Aracı Ekipmanları"
-                    count={counts.equipmentCount}
-                    subcategories={[
-                      { name: 'Deniz Motorları', count: Math.floor(counts.equipmentCount * 0.3) },
-                      { name: 'Elektrik', count: Math.floor(counts.equipmentCount * 0.2) },
-                      { name: 'Motor Aksamı', count: Math.floor(counts.equipmentCount * 0.2) },
-                      { name: 'Navigasyon', count: Math.floor(counts.equipmentCount * 0.1) },
-                      { name: 'Güverte', count: Math.floor(counts.equipmentCount * 0.1) },
-                      { name: 'Diğer', count: Math.floor(counts.equipmentCount * 0.1) },
-                    ]}
-                  />
-                </div>
+                {/* Ekipman */}
+                <CategorySection
+                  title="Deniz Aracı Ekipmanları"
+                  count={counts.equipmentCount}
+                  categoryKey="ekipman"
+                  subcategories={[
+                    { name: 'Deniz Motorları', count: Math.floor(counts.equipmentByType.motors), key: 'motors' },
+                    { name: 'Elektrik', count: Math.floor(counts.equipmentByType.electrical), key: 'electrical' },
+                    { name: 'Motor Aksamı', count: Math.floor(counts.equipmentByType.parts), key: 'parts' },
+                    { name: 'Navigasyon', count: Math.floor(counts.equipmentByType.navigation), key: 'navigation' },
+                    { name: 'Güverte', count: Math.floor(counts.equipmentByType.deck), key: 'deck' },
+                    { name: 'Diğer', count: Math.floor(counts.equipmentByType.other), key: 'other' },
+                  ]}
+                />
 
-                {/* Banner Slot - Sidebar */}
-                <div className="mt-8">
-                  <BannerSlot position="sidebar" className="h-48" />
+                {/* Sidebar Banner */}
+                <div className="mt-6 pt-6 border-t border-slate-700">
+                  <BannerSlot position="sidebar" className="h-40 rounded-lg" />
                 </div>
               </div>
             </div>
 
-            {/* Sağ - Son İlanlar */}
+            {/* Sağ 3/4 - Vitriin (İlanlar Grid) */}
             <div className="lg:col-span-3">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-white text-lg font-bold">{t.home.recentListings}</h2>
-                <Link href="/market" className="text-orange-400 text-sm hover:text-orange-300 flex items-center gap-1">
-                  {t.home.all} <ChevronRight className="w-3.5 h-3.5" />
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-white text-xl font-bold">{t.home.recentListings}</h2>
+                <Link href="/market" className="text-orange-400 text-sm hover:text-orange-300 flex items-center gap-1 font-medium">
+                  {t.home.all} <ChevronRight className="w-4 h-4" />
                 </Link>
               </div>
               {listings.length === 0 ? (
                 <div className="text-center py-16 text-slate-500">{t.home.noListings}</div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                   {listings.map(l => <ListingCard key={l.id} listing={l} t={t} />)}
                 </div>
               )}
@@ -225,6 +294,11 @@ export default async function HomePage() {
             <Users className="w-4 h-4" /> {t.home.registerAsMaster}
           </Link>
         </div>
+      </section>
+
+      {/* Announcements Banner */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <AnnouncementsBanner />
       </section>
 
       {/* Web Yenilikleri - Yeni İlanlar Carousel */}

@@ -65,8 +65,17 @@ export default function BannerSlot({
 
   // Show banner if exists
   if (banner) {
+    // Use banner dimensions if provided, otherwise use defaults
+    const containerStyle = {
+      width: banner.width ? `${banner.width}px` : undefined,
+      height: banner.height ? `${banner.height}px` : undefined,
+    }
+
     const content = (
-      <div className={`flex items-center justify-center overflow-hidden rounded-lg ${className}`}>
+      <div
+        className={`flex items-center justify-center overflow-hidden rounded-lg ${className}`}
+        style={containerStyle}
+      >
         {banner.image_url ? (
           <Image
             src={banner.image_url}

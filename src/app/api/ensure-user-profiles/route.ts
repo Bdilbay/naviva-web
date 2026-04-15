@@ -35,9 +35,12 @@ export async function POST(request: NextRequest) {
       .select('id, full_name')
       .in('id', userIds)
 
-    const profileMap = new Map(
-      (existingProfiles || []).map(p => [p.id, p.full_name]).filter(([_, name]) => name)
-    )
+    const profileMap = new Map<string, string>()
+    ;(existingProfiles || []).forEach(p => {
+      if (p.full_name) {
+        profileMap.set(p.id, p.full_name)
+      }
+    })
 
     // Find missing users
     const missingUserIds = userIds.filter(id => !profileMap.has(id))

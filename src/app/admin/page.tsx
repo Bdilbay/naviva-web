@@ -116,7 +116,7 @@ export default function AdminDashboard() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800" style={{ paddingTop: '104px' }}>
       <div className="p-8">
         {/* Header */}
         <div className="mb-12">

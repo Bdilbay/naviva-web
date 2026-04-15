@@ -90,7 +90,7 @@ export default function AuthSetupPage() {
   }
 
   return (
-    <div className="p-8 min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800">
+    <div className="p-8 min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800" style={{ paddingTop: "104px" }}>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">Authentication Setup</h1>
         <p className="text-slate-400">Kullanıcı kimlik doğrulaması ayarları</p>

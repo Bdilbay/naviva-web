@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, Eye, EyeOff, Upload, AlertCircle, Loader } from 'lucide-react'
+import { Plus, Edit2, Trash2, Eye, EyeOff, Upload, AlertCircle, Loader, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 interface Banner {
@@ -34,6 +34,8 @@ export default function BannersAdminPage() {
   const [editing, setEditing] = useState<Banner | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string>('')
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
 
   const [formData, setFormData] = useState({
     title: '',
@@ -144,18 +146,23 @@ export default function BannersAdminPage() {
           .eq('id', editing.id)
 
         if (updateError) throw new Error(updateError.message)
-        alert('Reklam güncellendi')
+        setSuccessMessage('Reklam güncellendi')
       } else {
         const { error: insertError } = await supabase
           .from('banners')
           .insert([payload])
 
         if (insertError) throw new Error(insertError.message)
-        alert('Reklam oluşturuldu')
+        setSuccessMessage('Reklam oluşturuldu')
       }
 
-      closeForm()
+      setShowSuccessModal(true)
+
+      // Fetch updated banners
       fetchBanners()
+
+      // Close form after modal is displayed so user sees success message
+      setTimeout(() => closeForm(), 2500)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Kaydetme başarısız'
       setError(message)
@@ -175,12 +182,15 @@ export default function BannersAdminPage() {
         .eq('id', id)
 
       if (deleteError) throw new Error(deleteError.message)
-      alert('Reklam silindi')
+      setSuccessMessage('Reklam silindi')
+      setShowSuccessModal(true)
+
+      // Fetch updated banners list
       fetchBanners()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Silme başarısız'
       console.error('Error deleting banner:', err)
-      alert(message)
+      setError(message)
     }
   }
 
@@ -238,7 +248,7 @@ export default function BannersAdminPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" style={{ paddingRight: '20px', paddingLeft: '20px' }}>
         <h1 className="text-3xl font-bold text-white">Reklam Alanları Yönetimi</h1>
         <button
           onClick={() => setShowForm(true)}
@@ -544,6 +554,33 @@ export default function BannersAdminPage() {
           </table>
         </div>
       )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="animate-fade-in">
+            <div
+              onClick={() => setShowSuccessModal(false)}
+              className="bg-slate-800/95 border border-orange-500/30 rounded-2xl p-8 w-80 text-center cursor-pointer hover:border-orange-500/50 transition-all shadow-2xl"
+            >
+              <div className="flex justify-center mb-4">
+                <div className="bg-orange-500/20 rounded-full p-4 animate-scale-in">
+                  <Check size={48} className="text-orange-400" />
+                </div>
+              </div>
+              <p className="text-xl font-semibold text-white mb-2">{successMessage}</p>
+              <p className="text-sm text-slate-400">Kapatmak için tıklayın</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        .animate-scale-in { animation: scaleIn 0.4s ease-out; }
+      `}</style>
     </div>
   )
 }

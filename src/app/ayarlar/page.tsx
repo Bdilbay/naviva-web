@@ -150,7 +150,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 pt-20 pb-12">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 pb-12" style={{ paddingTop: "104px" }}>
       <div className="max-w-2xl mx-auto px-4">
         {/* Header */}
         <button

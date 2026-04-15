@@ -46,13 +46,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch user names for all users in conversations
-    const userIds = new Set<string>()
+    const userIdArray: string[] = []
+    const seenIds = new Set()
     conversationsData.forEach((conv: any) => {
-      userIds.add(conv.user_1_id)
-      userIds.add(conv.user_2_id)
+      if (!seenIds.has(conv.user_1_id)) {
+        userIdArray.push(conv.user_1_id)
+        seenIds.add(conv.user_1_id)
+      }
+      if (!seenIds.has(conv.user_2_id)) {
+        userIdArray.push(conv.user_2_id)
+        seenIds.add(conv.user_2_id)
+      }
     })
-
-    const userIdArray = Array.from(userIds)
 
     // First get existing profiles
     const { data: profilesData } = await supabase
@@ -61,18 +66,20 @@ export async function GET(request: NextRequest) {
       .in('id', userIdArray)
 
     const userMap = new Map<string, string>()
-    const foundUserIds = new Set<string>()
+    const foundUserIds: string[] = []
 
     // Add existing profiles
-    (profilesData || []).forEach((u: any) => {
-      if (u.full_name) {
-        userMap.set(u.id, u.full_name)
-        foundUserIds.add(u.id)
+    if (profilesData) {
+      for (const u of profilesData) {
+        if ((u as any).full_name) {
+          userMap.set((u as any).id, (u as any).full_name)
+          foundUserIds.push((u as any).id)
+        }
       }
-    })
+    }
 
     // For missing users, fetch from auth and create profiles
-    const missingUserIds = userIdArray.filter(id => !foundUserIds.has(id))
+    const missingUserIds = userIdArray.filter(id => !foundUserIds.includes(id))
     if (missingUserIds.length > 0) {
       try {
         const { data: authUsers } = await supabase.auth.admin.listUsers()
