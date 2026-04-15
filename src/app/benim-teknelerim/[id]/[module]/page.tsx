@@ -126,7 +126,6 @@ const MODULE_CONFIG: Record<string, {
     fields: [
       { key: 'title', label: 'Başlık *', type: 'text' },
       { key: 'description', label: 'Açıklama', type: 'textarea' },
-      { key: 'category', label: 'Kategori', type: 'text' },
       { key: 'interval_months', label: 'Aralık (Ay)', type: 'number' },
       { key: 'due_date', label: 'Bitiş Tarihi *', type: 'date' },
       { key: 'status', label: 'Durum', type: 'select' },
@@ -140,10 +139,9 @@ const MODULE_CONFIG: Record<string, {
     description: 'Tamamlanan bakım ve onarım işleri',
     table: 'boat_tasks',
     fields: [
-      { key: 'title', label: 'İş Başlığı', type: 'text' },
+      { key: 'title', label: 'İş Başlığı *', type: 'text' },
       { key: 'description', label: 'Açıklama', type: 'textarea' },
       { key: 'date', label: 'Tarih', type: 'date' },
-      { key: 'category', label: 'Kategori', type: 'select' },
       { key: 'master_name', label: 'Usta/Teknisyen', type: 'master_select' },
       { key: 'cost', label: 'Maliyet (₺)', type: 'number' },
     ]
@@ -151,14 +149,14 @@ const MODULE_CONFIG: Record<string, {
   harcamalar: {
     title: 'Harcamalar',
     description: 'Bakım ve onarım giderleri',
-    table: 'boat_expenses',
+    table: 'expenses',
     fields: [
-      { key: 'title', label: 'Başlık', type: 'text' },
-      { key: 'description', label: 'Açıklama', type: 'textarea' },
-      { key: 'category', label: 'Kategori', type: 'select' },
-      { key: 'amount', label: 'Tutar (₺)', type: 'number' },
-      { key: 'date', label: 'Tarih', type: 'date' },
+      { key: 'title', label: 'Başlık *', type: 'text' },
+      { key: 'category', label: 'Kategori *', type: 'select' },
+      { key: 'amount', label: 'Tutar (₺) *', type: 'number' },
+      { key: 'expense_date', label: 'Tarih', type: 'date' },
       { key: 'notes', label: 'Notlar', type: 'textarea' },
+      { key: 'photo_url', label: 'Fotoğraf', type: 'file' },
     ]
   },
   kondisyon: {
