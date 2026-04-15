@@ -383,25 +383,37 @@ export default function ModulePage() {
         if (updateError) throw updateError
         setBoat(formData as Boat)
       } else if (editingItem) {
-        // Update existing item
+        // Update existing item - only include fields that are in config
+        const allowedFields = config.fields.map(f => f.key)
+        const filteredFormData = Object.fromEntries(
+          Object.entries(formData).filter(([key]) => allowedFields.includes(key))
+        )
+
         const { error: updateError } = await supabase
           .from(config.table)
-          .update(formData)
+          .update(filteredFormData)
           .eq('id', editingItem.id)
           .eq('user_id', session.user.id)
 
         if (updateError) throw updateError
-        setItems(items.map(i => i.id === editingItem.id ? { ...i, ...formData } : i))
+        setItems(items.map(i => i.id === editingItem.id ? { ...i, ...filteredFormData } : i))
       } else {
-        // Create new item
+        // Create new item - only include fields that are in config
+        const allowedFields = config.fields.map(f => f.key)
+        const filteredFormData = Object.fromEntries(
+          Object.entries(formData).filter(([key]) => allowedFields.includes(key))
+        )
+
         const insertPayload = {
           boat_id: boatId,
           user_id: session.user.id,
-          ...formData
+          ...filteredFormData
         }
         console.log('📝 Module:', moduleKey)
         console.log('📝 Table:', config.table)
-        console.log('📝 Insert payload:', insertPayload)
+        console.log('📝 Allowed fields:', allowedFields)
+        console.log('📝 Form data keys:', Object.keys(formData))
+        console.log('📝 Filtered payload:', insertPayload)
 
         const response = await supabase
           .from(config.table)
