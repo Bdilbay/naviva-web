@@ -75,8 +75,14 @@ const MODULE_CONFIG: Record<string, {
     fields: [
       { key: 'title', label: 'Başlık *', type: 'text' },
       { key: 'description', label: 'Açıklama', type: 'textarea' },
+      { key: 'location', label: 'Konum', type: 'text' },
+      { key: 'category', label: 'Kategori', type: 'text' },
       { key: 'date', label: 'Tarih', type: 'date' },
+      { key: 'severity', label: 'Önem Derecesi', type: 'select' },
       { key: 'status', label: 'Durum', type: 'select' },
+      { key: 'master_name', label: 'Usta Adı', type: 'text' },
+      { key: 'actual_cost', label: 'Gerçek Maliyet (₺)', type: 'number' },
+      { key: 'image_url', label: 'Fotoğraf', type: 'file' },
     ]
   },
   gunluk: {
@@ -126,7 +132,13 @@ const MODULE_CONFIG: Record<string, {
     fields: [
       { key: 'title', label: 'Başlık *', type: 'text' },
       { key: 'description', label: 'Açıklama', type: 'textarea' },
+      { key: 'category', label: 'Kategori', type: 'text' },
+      { key: 'interval_months', label: 'Aralık (Ay)', type: 'number' },
       { key: 'due_date', label: 'Bitiş Tarihi *', type: 'date' },
+      { key: 'status', label: 'Durum', type: 'select' },
+      { key: 'master_name', label: 'Usta Adı', type: 'text' },
+      { key: 'cost', label: 'Maliyet (₺)', type: 'number' },
+      { key: 'completed_date', label: 'Tamamlanma Tarihi', type: 'date' },
     ]
   },
   isler: {
@@ -137,6 +149,9 @@ const MODULE_CONFIG: Record<string, {
       { key: 'title', label: 'İş Başlığı *', type: 'text' },
       { key: 'description', label: 'Açıklama', type: 'textarea' },
       { key: 'date', label: 'Tarih', type: 'date' },
+      { key: 'category', label: 'Kategori', type: 'select' },
+      { key: 'master_name', label: 'Usta/Teknisyen', type: 'text' },
+      { key: 'cost', label: 'Maliyet (₺)', type: 'number' },
     ]
   },
   harcamalar: {
@@ -284,31 +299,6 @@ export default function ModulePage() {
   const [announcement, setAnnouncement] = useState<Announcement | null>(null)
 
   const config = MODULE_CONFIG[moduleKey] || MODULE_CONFIG.bilgiler
-
-  // Check for modules with schema issues
-  const disabledModules = ['bakim', 'arizalar', 'isler']
-  if (disabledModules.includes(moduleKey)) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-6 md:p-8" style={{ paddingTop: '104px' }}>
-        <div className="max-w-4xl mx-auto">
-          <Link href={`/benim-teknelerim/${boatId}`}
-            className="flex items-center gap-2 text-slate-400 hover:text-white mb-4 transition-colors">
-            <ArrowLeft size={20} />
-            Geri Dön
-          </Link>
-          <div className="p-8 bg-yellow-500/10 border border-yellow-500/50 rounded-lg">
-            <h2 className="text-2xl font-bold text-yellow-400 mb-4">⚙️ Bakım Gerekli</h2>
-            <p className="text-yellow-200 mb-4">
-              Bu modül şu anda kullanılamıyor. Supabase veritabanı şeması henüz tam senkronize edilmemiştir.
-            </p>
-            <p className="text-yellow-300 text-sm">
-              Lütfen admin ile iletişime geçerek Supabase migration'ını tamamlatınız.
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   // Filter logic for different modules
   const getFilteredItems = (): ModuleItem[] => {
