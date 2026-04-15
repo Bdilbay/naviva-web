@@ -67,7 +67,7 @@ const MODULE_CONFIG: Record<string, {
     description: 'Teknede oluşan arızalar ve sorunlar',
     table: 'boat_faults',
     fields: [
-      { key: 'title', label: 'Başlık', type: 'text' },
+      { key: 'title', label: 'Başlık *', type: 'text' },
       { key: 'description', label: 'Açıklama', type: 'textarea' },
       { key: 'location', label: 'Konum', type: 'text' },
       { key: 'category', label: 'Kategori', type: 'text' },
@@ -124,11 +124,11 @@ const MODULE_CONFIG: Record<string, {
     description: 'Periyodik bakım planı',
     table: 'boat_maintenance',
     fields: [
-      { key: 'title', label: 'Başlık', type: 'text' },
+      { key: 'title', label: 'Başlık *', type: 'text' },
       { key: 'description', label: 'Açıklama', type: 'textarea' },
       { key: 'category', label: 'Kategori', type: 'text' },
       { key: 'interval_months', label: 'Aralık (Ay)', type: 'number' },
-      { key: 'due_date', label: 'Bitiş Tarihi', type: 'date' },
+      { key: 'due_date', label: 'Bitiş Tarihi *', type: 'date' },
       { key: 'status', label: 'Durum', type: 'select' },
       { key: 'master_name', label: 'Usta Adı', type: 'master_select' },
       { key: 'cost', label: 'Maliyet (₺)', type: 'number' },
@@ -371,6 +371,16 @@ export default function ModulePage() {
 
   const handleSave = async () => {
     if (!formData || !boat) return
+
+    // Validate required fields
+    const requiredFields = config.fields.filter(f => f.label.includes('*'))
+    const missingFields = requiredFields.filter(f => !formData[f.key])
+
+    if (missingFields.length > 0) {
+      setError(`Lütfen zorunlu alanları doldurunuz: ${missingFields.map(f => f.label.replace('*', '').trim()).join(', ')}`)
+      return
+    }
+
     setIsSaving(true)
 
     try {
@@ -407,7 +417,10 @@ export default function ModulePage() {
             ...formData
           }])
 
-        if (insertError) throw insertError
+        if (insertError) {
+          console.error('Insert error:', insertError)
+          throw new Error(insertError.message || 'Kayıt eklenirken hata oluştu')
+        }
         await fetchData()
       }
 
@@ -422,6 +435,7 @@ export default function ModulePage() {
         router.push(`/benim-teknelerim/${boatId}`)
       }, 1500)
     } catch (err) {
+      console.error('Save error:', err)
       setError(err instanceof Error ? err.message : 'İşlem başarısız')
     } finally {
       setIsSaving(false)
