@@ -131,7 +131,6 @@ const MODULE_CONFIG: Record<string, {
       { key: 'status', label: 'Durum', type: 'select' },
       { key: 'master_name', label: 'Usta Adı', type: 'master_select' },
       { key: 'cost', label: 'Maliyet (₺)', type: 'number' },
-      { key: 'completed_date', label: 'Tamamlanma Tarihi', type: 'date' },
     ]
   },
   isler: {
@@ -412,18 +411,33 @@ export default function ModulePage() {
           user_id: session.user.id,
           ...formData
         }
-        console.log('Insert payload:', insertPayload)
-        const { error: insertError, data: insertData } = await supabase
+        console.log('📝 Module:', moduleKey)
+        console.log('📝 Table:', config.table)
+        console.log('📝 Insert payload:', insertPayload)
+
+        const response = await supabase
           .from(config.table)
           .insert([insertPayload])
           .select()
 
+        const { error: insertError, data: insertData } = response
+
+        console.log('📊 Response:', response)
+        console.log('❌ Insert error:', insertError)
+        console.log('✅ Insert data:', insertData)
+
         if (insertError) {
-          console.error('Insert error:', insertError)
-          const errorMsg = insertError.message || insertError.details || JSON.stringify(insertError) || 'Kayıt eklenirken hata oluştu'
+          // Try to get a meaningful error message
+          let errorMsg = 'Kayıt eklenirken hata oluştu'
+          if (insertError.message) errorMsg = insertError.message
+          else if (insertError.details) errorMsg = insertError.details
+          else if (insertError.hint) errorMsg = insertError.hint
+          else if (Object.keys(insertError).length === 0) {
+            errorMsg = `Supabase hatası (${config.table} tablosuna yazma izni kontrol edin)`
+          }
           throw new Error(errorMsg)
         }
-        console.log('Insert success:', insertData)
+        console.log('✅ Başarılı!')
         await fetchData()
       }
 
