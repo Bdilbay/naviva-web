@@ -231,7 +231,7 @@ function MasterToast({ message, type, onClose }: { message: string; type: 'succe
 }
 
 function MasterCard({ master, yearsExp, defaultTitle, photoAlt }: {
-  master: MasterProfile
+  master: any
   yearsExp: string
   defaultTitle: string
   photoAlt: string
@@ -240,6 +240,15 @@ function MasterCard({ master, yearsExp, defaultTitle, photoAlt }: {
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null)
   const [user, setUser] = useState<any>(null)
+
+  // Handle both field name variations (mobile vs web)
+  const name = master.full_name || master.name || 'Usta'
+  const city = master.location_city || master.city
+  const specialties = master.specialties || master.categories || []
+  const photoUrl = master.photo_url || master.work_photo_urls?.[0]
+  const verified = master.verified || false
+  const rating = master.rating || 0
+  const reviewCount = master.review_count || 0
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -288,55 +297,81 @@ function MasterCard({ master, yearsExp, defaultTitle, photoAlt }: {
   return (
     <>
       <Link href={`/ustalar/${master.id}`}
-        className="group block rounded-2xl border border-slate-700/60 bg-slate-800/50 hover:border-orange-500/50 hover:bg-slate-800 transition-all p-5 relative">
-        <div className="flex items-start gap-4 mb-4">
-          <div className="w-14 h-14 rounded-2xl bg-orange-500/15 border border-orange-500/30 overflow-hidden flex items-center justify-center flex-shrink-0">
-            {master.photo_url ? (
-              <Image src={master.photo_url} alt={master.full_name || photoAlt} width={56} height={56} className="object-cover w-full h-full" unoptimized />
-            ) : (
-              <Users className="w-5 h-5 text-orange-400" />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-slate-100 font-semibold text-sm leading-tight">{master.full_name}</p>
-            <p className="text-slate-500 text-xs mt-0.5">{master.title ?? defaultTitle}</p>
-            {master.location_city && (
-              <p className="text-slate-500 text-xs flex items-center gap-1 mt-1.5">
-                <MapPin className="w-3 h-3" />{master.location_city}
-              </p>
-            )}
-          </div>
-          {/* Favorite Button */}
-          <button
-            onClick={toggleFavorite}
-            disabled={loading}
-            className="flex-shrink-0 p-2 rounded-lg hover:bg-slate-700/50 transition-colors disabled:opacity-50"
-          >
-            {loading ? (
-              <div className="w-4 h-4 border-2 border-orange-400 border-r-transparent rounded-full animate-spin" />
-            ) : (
-              <Heart className={`w-4 h-4 transition-colors ${isFavorited ? 'fill-red-500 text-red-500' : 'text-slate-400'}`} />
-            )}
-          </button>
+        className="group block rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-800/60 to-slate-800/30 hover:border-orange-500/40 hover:from-slate-800/80 hover:to-slate-800/50 transition-all duration-200 overflow-hidden shadow-lg hover:shadow-orange-500/10">
+        {/* Photo */}
+        <div className="relative w-full h-40 bg-gradient-to-br from-slate-700 to-slate-800 overflow-hidden">
+          {photoUrl ? (
+            <Image src={photoUrl} alt={name} width={300} height={160} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" unoptimized />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-500/20 to-orange-600/10">
+              <Users className="w-12 h-12 text-orange-400/50" />
+            </div>
+          )}
+          {verified && (
+            <div className="absolute top-2 right-2 flex items-center gap-1 bg-green-500/90 px-2 py-1 rounded-full">
+              <Check className="w-3 h-3 text-white" />
+              <span className="text-xs font-semibold text-white">Doğrulanmış</span>
+            </div>
+          )}
         </div>
 
-        {master.experience_years && (
-          <div className="flex items-center gap-1.5 mb-3">
-            <Star className="w-3.5 h-3.5 text-orange-400" />
-            <span className="text-slate-400 text-xs">{master.experience_years} {yearsExp}</span>
+        {/* Content */}
+        <div className="p-4">
+          {/* Header with name and favorite */}
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-slate-100 font-bold text-sm leading-tight truncate">{name}</h3>
+              <p className="text-slate-500 text-xs mt-0.5">{master.title || defaultTitle}</p>
+            </div>
+            <button
+              onClick={toggleFavorite}
+              disabled={loading}
+              className="flex-shrink-0 p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors disabled:opacity-50 -mr-1"
+            >
+              {loading ? (
+                <div className="w-4 h-4 border-2 border-orange-400 border-r-transparent rounded-full animate-spin" />
+              ) : (
+                <Heart className={`w-4 h-4 transition-colors ${isFavorited ? 'fill-red-500 text-red-500' : 'text-slate-400'}`} />
+              )}
+            </button>
           </div>
-        )}
 
-        {master.specialties?.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {master.specialties.slice(0, 3).map(s => (
-              <span key={s} className="bg-slate-700/80 text-slate-400 text-xs px-2 py-0.5 rounded-md">{s}</span>
-            ))}
-            {master.specialties.length > 3 && (
-              <span className="text-slate-600 text-xs px-1 py-0.5">+{master.specialties.length - 3}</span>
-            )}
-          </div>
-        )}
+          {/* Location */}
+          {city && (
+            <p className="text-slate-500 text-xs flex items-center gap-1 mb-3">
+              <MapPin className="w-3 h-3" />{city}
+            </p>
+          )}
+
+          {/* Rating */}
+          {rating > 0 && (
+            <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-700/50">
+              <div className="flex items-center gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star
+                    key={i}
+                    className={`w-3 h-3 ${i < Math.round(rating) ? 'fill-orange-400 text-orange-400' : 'text-slate-700'}`}
+                  />
+                ))}
+              </div>
+              <span className="text-xs text-slate-500">({reviewCount} yorum)</span>
+            </div>
+          )}
+
+          {/* Specialties */}
+          {specialties?.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {specialties.slice(0, 2).map((s: string) => (
+                <span key={s} className="bg-orange-500/15 text-orange-300 text-xs px-2 py-1 rounded-md border border-orange-500/20">
+                  {s}
+                </span>
+              ))}
+              {specialties.length > 2 && (
+                <span className="text-slate-600 text-xs px-2 py-1">+{specialties.length - 2}</span>
+              )}
+            </div>
+          )}
+        </div>
       </Link>
 
       {toast && <MasterToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
