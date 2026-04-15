@@ -280,33 +280,7 @@ function MarketContent() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {showcaseListings.slice(showcasePage * showcasePerPage, (showcasePage + 1) * showcasePerPage).map(l => (
-                  <Link key={l.id} href={`/market/${l.id}`}
-                    className="group relative rounded-xl overflow-hidden bg-slate-800/50 border border-slate-700/50 hover:border-orange-500/50 transition-all duration-300">
-                    {l.photos?.[0] ? (
-                      <Image
-                        src={l.photos[0]}
-                        alt={l.title}
-                        width={200}
-                        height={160}
-                        className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-32 bg-slate-700/50 flex items-center justify-center">
-                        <Ship className="w-6 h-6 text-slate-600" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    <div className="absolute inset-0 flex flex-col justify-between p-2">
-                      <div>
-                        <p className="text-white font-semibold text-xs line-clamp-2">{l.title}</p>
-                        {l.price && (
-                          <p className="text-orange-400 text-xs font-bold mt-1">
-                            {l.price_unit === 'EUR' ? '€' : l.price_unit === 'USD' ? '$' : '₺'}{l.price}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
+                  <ShowcaseListingCard key={l.id} listing={l} />
                 ))}
               </div>
               <div className="border-b border-slate-700/50 mt-8" />
@@ -421,6 +395,104 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
       )}
       {message}
     </div>
+  )
+}
+
+// Showcase Listing Card - vitrin için
+function ShowcaseListingCard({ listing }: { listing: Listing }) {
+  const [isFavorited, setIsFavorited] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null)
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+    })
+  }, [])
+
+  const toggleFavorite = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!user) {
+      window.location.href = '/giris'
+      return
+    }
+
+    setLoading(true)
+    setToast({ message: 'Favorilerinize ekleniyor...', type: 'info' })
+
+    try {
+      if (isFavorited) {
+        await supabase
+          .from('favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('item_id', listing.id)
+          .eq('item_type', 'listing')
+        setIsFavorited(false)
+        setToast({ message: 'Favorilerden çıkarıldı', type: 'success' })
+      } else {
+        await supabase.from('favorites').insert({
+          user_id: user.id,
+          item_id: listing.id,
+          item_type: 'listing',
+        })
+        setIsFavorited(true)
+        setToast({ message: 'Favorilerinize eklendi ❤️', type: 'success' })
+      }
+    } catch (error) {
+      setToast({ message: 'Bir hata oluştu', type: 'success' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <>
+      <Link href={`/market/${listing.id}`}
+        className="group relative rounded-xl overflow-hidden bg-slate-800/50 border border-slate-700/50 hover:border-orange-500/50 transition-all duration-300">
+        {listing.photos?.[0] ? (
+          <Image
+            src={listing.photos[0]}
+            alt={listing.title}
+            width={200}
+            height={160}
+            className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
+            unoptimized
+          />
+        ) : (
+          <div className="w-full h-32 bg-slate-700/50 flex items-center justify-center">
+            <Ship className="w-6 h-6 text-slate-600" />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        <div className="absolute inset-0 flex flex-col justify-between p-2">
+          <button
+            onClick={toggleFavorite}
+            disabled={loading}
+            className="self-end p-1.5 rounded-lg bg-black/40 hover:bg-black/60 transition-colors disabled:opacity-50"
+          >
+            {loading ? (
+              <div className="w-4 h-4 border-2 border-white border-r-transparent rounded-full animate-spin" />
+            ) : (
+              <Heart className={`w-4 h-4 transition-colors ${isFavorited ? 'fill-red-500 text-red-500' : 'text-white'}`} />
+            )}
+          </button>
+          <div>
+            <p className="text-white font-semibold text-xs line-clamp-2">{listing.title}</p>
+            {listing.price && (
+              <p className="text-orange-400 text-xs font-bold mt-1">
+                {listing.price_unit === 'EUR' ? '€' : listing.price_unit === 'USD' ? '$' : '₺'}{listing.price}
+              </p>
+            )}
+          </div>
+        </div>
+      </Link>
+
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+    </>
   )
 }
 
