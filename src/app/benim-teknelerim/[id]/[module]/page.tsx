@@ -1221,15 +1221,35 @@ function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave
     const fetchMasters = async () => {
       try {
         console.log('Fetching masters for boat:', boatId)
-        const { data, error } = await supabase
+
+        // Tekneye özel ustalar
+        const { data: boatMasters, error: error1 } = await supabase
           .from('boat_masters')
           .select('name, id')
           .eq('boat_id', boatId)
           .order('name', { ascending: true })
 
-        console.log('Masters fetch result:', { data, error })
-        if (error) throw error
-        setMasters(data || [])
+        // Global "Usta Bul" listesi (kayıtlı olan)
+        const { data: globalMasters, error: error2 } = await supabase
+          .from('master_profiles')
+          .select('name, id')
+          .eq('listed_publicly', true)
+          .order('name', { ascending: true })
+
+        console.log('Boat masters:', boatMasters, 'Global masters:', globalMasters)
+
+        if (error1) console.error('Boat masters error:', error1)
+        if (error2) console.error('Global masters error:', error2)
+
+        // Tekne ustalarını önce, sonra global listesini ekle (duplikasyonu önle)
+        const allMasters = [
+          ...(boatMasters || []),
+          ...(globalMasters || []).filter(
+            gm => !(boatMasters || []).some(bm => bm.name === gm.name)
+          )
+        ]
+
+        setMasters(allMasters)
       } catch (err) {
         console.error('Usta listesi yükleme hatası:', err)
         setMasters([])
@@ -1392,7 +1412,7 @@ function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave
                   </select>
                   {masters.length === 0 && (
                     <p className="text-xs text-slate-400">
-                      Tekneye hiç usta eklenmemiş. Önce Ustalar sekmesine giderek usta ekleyiniz.
+                      Usta bulunamadı. Ustalar sekmesine giderek tekneye usta ekleyiniz veya "Usta Bul"dan seçiniz.
                     </p>
                   )}
                 </div>
