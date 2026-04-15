@@ -1220,20 +1220,25 @@ function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave
   useEffect(() => {
     const fetchMasters = async () => {
       try {
+        console.log('Fetching masters for boat:', boatId)
         const { data, error } = await supabase
           .from('boat_masters')
           .select('name, id')
           .eq('boat_id', boatId)
           .order('name', { ascending: true })
 
+        console.log('Masters fetch result:', { data, error })
         if (error) throw error
         setMasters(data || [])
       } catch (err) {
         console.error('Usta listesi yükleme hatası:', err)
+        setMasters([])
       }
     }
 
-    fetchMasters()
+    if (boatId) {
+      fetchMasters()
+    }
   }, [boatId])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldKey: string) => {
@@ -1374,7 +1379,9 @@ function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave
                     }}
                     className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                   >
-                    <option value="">Usta Seçiniz</option>
+                    <option value="">
+                      {masters.length === 0 ? 'Usta Eklenmemiş' : 'Usta Seçiniz'}
+                    </option>
                     {masters
                       .filter(m => m.name.toLowerCase().includes(masterSearch.toLowerCase()))
                       .map(master => (
@@ -1383,6 +1390,11 @@ function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave
                         </option>
                       ))}
                   </select>
+                  {masters.length === 0 && (
+                    <p className="text-xs text-slate-400">
+                      Tekneye hiç usta eklenmemiş. Önce Ustalar sekmesine giderek usta ekleyiniz.
+                    </p>
+                  )}
                 </div>
               ) : field.type === 'select' ? (
                 <select
