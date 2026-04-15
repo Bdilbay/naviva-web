@@ -80,7 +80,7 @@ const MODULE_CONFIG: Record<string, {
       { key: 'date', label: 'Tarih', type: 'date' },
       { key: 'severity', label: 'Önem Derecesi', type: 'select' },
       { key: 'status', label: 'Durum', type: 'select' },
-      { key: 'master_name', label: 'Usta Adı', type: 'text' },
+      { key: 'master_name', label: 'Usta Adı', type: 'master_select' },
       { key: 'actual_cost', label: 'Gerçek Maliyet (₺)', type: 'number' },
       { key: 'image_url', label: 'Fotoğraf', type: 'file' },
     ]
@@ -136,7 +136,7 @@ const MODULE_CONFIG: Record<string, {
       { key: 'interval_months', label: 'Aralık (Ay)', type: 'number' },
       { key: 'due_date', label: 'Bitiş Tarihi *', type: 'date' },
       { key: 'status', label: 'Durum', type: 'select' },
-      { key: 'master_name', label: 'Usta Adı', type: 'text' },
+      { key: 'master_name', label: 'Usta Adı', type: 'master_select' },
       { key: 'cost', label: 'Maliyet (₺)', type: 'number' },
       { key: 'completed_date', label: 'Tamamlanma Tarihi', type: 'date' },
     ]
@@ -150,7 +150,7 @@ const MODULE_CONFIG: Record<string, {
       { key: 'description', label: 'Açıklama', type: 'textarea' },
       { key: 'date', label: 'Tarih', type: 'date' },
       { key: 'category', label: 'Kategori', type: 'select' },
-      { key: 'master_name', label: 'Usta/Teknisyen', type: 'text' },
+      { key: 'master_name', label: 'Usta/Teknisyen', type: 'master_select' },
       { key: 'cost', label: 'Maliyet (₺)', type: 'number' },
     ]
   },
