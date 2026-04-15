@@ -181,7 +181,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-auto" style={{ paddingTop: '104px' }}>
+        <div className="flex-1 overflow-auto bg-slate-900">
           {children}
         </div>
       </main>
