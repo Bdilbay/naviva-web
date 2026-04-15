@@ -69,14 +69,8 @@ const MODULE_CONFIG: Record<string, {
     fields: [
       { key: 'title', label: 'Başlık *', type: 'text' },
       { key: 'description', label: 'Açıklama', type: 'textarea' },
-      { key: 'location', label: 'Konum', type: 'text' },
-      { key: 'category', label: 'Kategori', type: 'text' },
       { key: 'date', label: 'Tarih', type: 'date' },
-      { key: 'severity', label: 'Önem Derecesi', type: 'select' },
       { key: 'status', label: 'Durum', type: 'select' },
-      { key: 'master_name', label: 'Usta Adı', type: 'master_select' },
-      { key: 'actual_cost', label: 'Gerçek Maliyet (₺)', type: 'number' },
-      { key: 'image_url', label: 'Fotoğraf', type: 'file' },
     ]
   },
   gunluk: {
@@ -126,11 +120,7 @@ const MODULE_CONFIG: Record<string, {
     fields: [
       { key: 'title', label: 'Başlık *', type: 'text' },
       { key: 'description', label: 'Açıklama', type: 'textarea' },
-      { key: 'interval_months', label: 'Aralık (Ay)', type: 'number' },
       { key: 'due_date', label: 'Bitiş Tarihi *', type: 'date' },
-      { key: 'status', label: 'Durum', type: 'select' },
-      { key: 'master_name', label: 'Usta Adı', type: 'master_select' },
-      { key: 'cost', label: 'Maliyet (₺)', type: 'number' },
     ]
   },
   isler: {
@@ -141,8 +131,6 @@ const MODULE_CONFIG: Record<string, {
       { key: 'title', label: 'İş Başlığı *', type: 'text' },
       { key: 'description', label: 'Açıklama', type: 'textarea' },
       { key: 'date', label: 'Tarih', type: 'date' },
-      { key: 'master_name', label: 'Usta/Teknisyen', type: 'master_select' },
-      { key: 'cost', label: 'Maliyet (₺)', type: 'number' },
     ]
   },
   harcamalar: {
