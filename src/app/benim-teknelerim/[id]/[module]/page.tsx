@@ -74,7 +74,7 @@ const MODULE_CONFIG: Record<string, {
       { key: 'date', label: 'Tarih', type: 'date' },
       { key: 'severity', label: 'Önem Derecesi', type: 'select' },
       { key: 'status', label: 'Durum', type: 'select' },
-      { key: 'master_name', label: 'Usta Adı', type: 'text' },
+      { key: 'master_name', label: 'Usta Adı', type: 'master_select' },
       { key: 'actual_cost', label: 'Gerçek Maliyet (₺)', type: 'number' },
       { key: 'image_url', label: 'Fotoğraf', type: 'file' },
     ]
@@ -130,7 +130,7 @@ const MODULE_CONFIG: Record<string, {
       { key: 'interval_months', label: 'Aralık (Ay)', type: 'number' },
       { key: 'due_date', label: 'Bitiş Tarihi', type: 'date' },
       { key: 'status', label: 'Durum', type: 'select' },
-      { key: 'master_name', label: 'Usta Adı', type: 'text' },
+      { key: 'master_name', label: 'Usta Adı', type: 'master_select' },
       { key: 'cost', label: 'Maliyet (₺)', type: 'number' },
       { key: 'completed_date', label: 'Tamamlanma Tarihi', type: 'date' },
     ]
@@ -144,7 +144,7 @@ const MODULE_CONFIG: Record<string, {
       { key: 'description', label: 'Açıklama', type: 'textarea' },
       { key: 'date', label: 'Tarih', type: 'date' },
       { key: 'category', label: 'Kategori', type: 'select' },
-      { key: 'master_name', label: 'Usta/Teknisyen', type: 'text' },
+      { key: 'master_name', label: 'Usta/Teknisyen', type: 'master_select' },
       { key: 'cost', label: 'Maliyet (₺)', type: 'number' },
     ]
   },
@@ -1214,6 +1214,27 @@ function ItemCard({ item, moduleKey, config, onEdit, onDelete, onToggle }: { ite
 function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave, onCancel, isSaving, boatId }: { item: ModuleItem | null; moduleKey: string; config: any; formData: Record<string, any>; onFormChange: (data: Record<string, any>) => void; onSave: () => void; onCancel: () => void; isSaving: boolean; boatId: string }) {
   const router = useRouter()
   const [uploadingField, setUploadingField] = useState<string | null>(null)
+  const [masters, setMasters] = useState<Array<{ name: string; id?: string }>>([])
+  const [masterSearch, setMasterSearch] = useState('')
+
+  useEffect(() => {
+    const fetchMasters = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('boat_masters')
+          .select('name, id')
+          .eq('boat_id', boatId)
+          .order('name', { ascending: true })
+
+        if (error) throw error
+        setMasters(data || [])
+      } catch (err) {
+        console.error('Usta listesi yükleme hatası:', err)
+      }
+    }
+
+    fetchMasters()
+  }, [boatId])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldKey: string) => {
     const files = e.target.files
@@ -1336,6 +1357,33 @@ function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave
                   rows={3}
                   placeholder={field.label}
                 />
+              ) : field.type === 'master_select' ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Usta ara..."
+                    value={masterSearch}
+                    onChange={(e) => setMasterSearch(e.target.value)}
+                    className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-orange-500 text-sm"
+                  />
+                  <select
+                    value={formData[field.key] || ''}
+                    onChange={(e) => {
+                      onFormChange({ ...formData, [field.key]: e.target.value })
+                      setMasterSearch('')
+                    }}
+                    className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                  >
+                    <option value="">Usta Seçiniz</option>
+                    {masters
+                      .filter(m => m.name.toLowerCase().includes(masterSearch.toLowerCase()))
+                      .map(master => (
+                        <option key={master.id || master.name} value={master.name}>
+                          {master.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
               ) : field.type === 'select' ? (
                 <select
                   value={formData[field.key] || ''}
