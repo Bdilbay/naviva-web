@@ -1216,6 +1216,8 @@ function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave
   const [uploadingField, setUploadingField] = useState<string | null>(null)
   const [masters, setMasters] = useState<Array<{ name: string; id?: string }>>([])
   const [masterSearch, setMasterSearch] = useState('')
+  const [showMasterModal, setShowMasterModal] = useState(false)
+  const [masterModalSearch, setMasterModalSearch] = useState('')
 
   useEffect(() => {
     const fetchMasters = async () => {
@@ -1386,33 +1388,22 @@ function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave
                 <div className="space-y-2">
                   <input
                     type="text"
-                    placeholder="Usta ara..."
-                    value={masterSearch}
-                    onChange={(e) => setMasterSearch(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-orange-500 text-sm"
-                  />
-                  <select
+                    placeholder={formData[field.key] ? formData[field.key] : 'Usta seçmek için tıkla...'}
                     value={formData[field.key] || ''}
-                    onChange={(e) => {
-                      onFormChange({ ...formData, [field.key]: e.target.value })
-                      setMasterSearch('')
-                    }}
-                    className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                    onClick={() => setShowMasterModal(true)}
+                    readOnly
+                    className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-orange-500 cursor-pointer"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowMasterModal(true)}
+                    className="w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition-colors"
                   >
-                    <option value="">
-                      {masters.length === 0 ? 'Usta Eklenmemiş' : 'Usta Seçiniz'}
-                    </option>
-                    {masters
-                      .filter(m => m.name.toLowerCase().includes(masterSearch.toLowerCase()))
-                      .map(master => (
-                        <option key={master.id || master.name} value={master.name}>
-                          {master.name}
-                        </option>
-                      ))}
-                  </select>
+                    Usta Seç
+                  </button>
                   {masters.length === 0 && (
                     <p className="text-xs text-slate-400">
-                      Usta bulunamadı. Ustalar sekmesine giderek tekneye usta ekleyiniz veya "Usta Bul"dan seçiniz.
+                      Usta bulunamadı. Ustalar sekmesine giderek tekneye usta ekleyiniz.
                     </p>
                   )}
                 </div>
@@ -1543,6 +1534,63 @@ function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave
           </button>
         </div>
       </div>
+
+      {showMasterModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-slate-800/95 border border-slate-700 rounded-2xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="border-b border-slate-700 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-white">Usta Seç</h3>
+                <button
+                  onClick={() => {
+                    setShowMasterModal(false)
+                    setMasterModalSearch('')
+                  }}
+                  className="p-1 hover:bg-slate-700 rounded transition-colors"
+                >
+                  <X size={20} className="text-slate-400" />
+                </button>
+              </div>
+              <input
+                type="text"
+                placeholder="Usta ara..."
+                value={masterModalSearch}
+                onChange={(e) => setMasterModalSearch(e.target.value)}
+                autoFocus
+                className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-orange-500 text-sm"
+              />
+            </div>
+
+            <div className="overflow-y-auto flex-1">
+              {masters.length === 0 ? (
+                <div className="p-6 text-center text-slate-400">
+                  <p>Usta bulunamadı</p>
+                </div>
+              ) : (
+                <div className="space-y-2 p-4">
+                  {masters
+                    .filter(m =>
+                      m.name.toLowerCase().includes(masterModalSearch.toLowerCase())
+                    )
+                    .map(master => (
+                      <button
+                        key={master.id || master.name}
+                        onClick={() => {
+                          onFormChange({ ...formData, [config.fields.find(f => f.type === 'master_select').key]: master.name })
+                          setShowMasterModal(false)
+                          setMasterModalSearch('')
+                        }}
+                        className="w-full text-left px-4 py-3 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-orange-500 text-white transition-colors"
+                      >
+                        {master.name}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
