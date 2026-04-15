@@ -407,18 +407,23 @@ export default function ModulePage() {
         setItems(items.map(i => i.id === editingItem.id ? { ...i, ...formData } : i))
       } else {
         // Create new item
-        const { error: insertError } = await supabase
+        const insertPayload = {
+          boat_id: boatId,
+          user_id: session.user.id,
+          ...formData
+        }
+        console.log('Insert payload:', insertPayload)
+        const { error: insertError, data: insertData } = await supabase
           .from(config.table)
-          .insert([{
-            boat_id: boatId,
-            user_id: session.user.id,
-            ...formData
-          }])
+          .insert([insertPayload])
+          .select()
 
         if (insertError) {
           console.error('Insert error:', insertError)
-          throw new Error(insertError.message || 'Kayıt eklenirken hata oluştu')
+          const errorMsg = insertError.message || insertError.details || JSON.stringify(insertError) || 'Kayıt eklenirken hata oluştu'
+          throw new Error(errorMsg)
         }
+        console.log('Insert success:', insertData)
         await fetchData()
       }
 
