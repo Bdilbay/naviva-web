@@ -259,11 +259,11 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Ustalar - Horizontal Scroll */}
+      {/* Ustalar - Auto Carousel */}
       {masters.length > 0 && (
         <section className="bg-slate-800/40 border-y border-slate-700/50 py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-8">
               <div>
                 <h2 className="text-white text-xl font-bold">{t.home.trustedMasters}</h2>
                 <p className="text-slate-500 text-sm mt-1">{t.home.certifiedTechs}</p>
@@ -272,10 +272,34 @@ export default async function HomePage() {
                 {t.home.all} <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
-            <div className="overflow-x-auto pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-              <div className="flex gap-4" style={{ width: 'min-content' }}>
+            <style>{`
+              @keyframes smoothScroll {
+                0% { transform: translateX(0); }
+                100% { transform: translateX(calc(-100% / 2)); }
+              }
+              .masters-carousel {
+                display: flex;
+                gap: 1rem;
+                animation: smoothScroll 60s linear infinite;
+                width: fit-content;
+              }
+              .masters-carousel:hover {
+                animation-play-state: paused;
+              }
+              .masters-wrapper {
+                overflow: hidden;
+                width: 100%;
+              }
+            `}</style>
+            <div className="masters-wrapper">
+              <div className="masters-carousel">
                 {masters.map(m => (
-                  <div key={m.id} className="flex-shrink-0 w-72">
+                  <div key={`first-${m.id}`} className="flex-shrink-0 w-64">
+                    <MasterCard master={m} t={t} />
+                  </div>
+                ))}
+                {masters.map(m => (
+                  <div key={`second-${m.id}`} className="flex-shrink-0 w-64">
                     <MasterCard master={m} t={t} />
                   </div>
                 ))}
