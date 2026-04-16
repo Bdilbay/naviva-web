@@ -272,7 +272,7 @@ export default async function HomePage() {
                 {t.home.all} <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
-            <div className="overflow-x-auto pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 scrollbar-thin scrollbar-thumb-orange-500/50 scrollbar-track-slate-800">
+            <div className="overflow-x-auto pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
               <div className="flex gap-4" style={{ width: 'min-content' }}>
                 {masters.map(m => (
                   <div key={m.id} className="flex-shrink-0 w-72">
