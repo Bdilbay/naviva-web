@@ -262,7 +262,7 @@ export default async function HomePage() {
 
       {/* Ustalar - Auto Carousel */}
       {masters.length > 0 && (
-        <section className="bg-slate-800/40 border-y border-slate-700/50 py-12">
+        <section id="carousel" className="bg-slate-800/40 border-y border-slate-700/50 py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-8">
               <div>
