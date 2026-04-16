@@ -410,7 +410,7 @@ export default function ModulePage() {
           .from('master_profiles')
           .select('*')
           .or(`listed_publicly.eq.true,listed_publicly.is.null`)
-          .neq('user_id', session.user.id)
+          .or(`user_id.neq.${session.user.id},user_id.is.null`)
           .order('name', { ascending: true })
         console.log('🌍 globalMasters:', { count: globalMasters?.length || 0, error: globalMastersError?.message })
 
@@ -420,13 +420,13 @@ export default function ModulePage() {
 
         // Combine: boat masters first, then user's global, then other global (avoiding duplicates)
         const combined: any[] = (boatMasters || []).map((bm: any) => ({
-          id: bm.id,
+          ...bm,
+          id: bm.id || '',
           name: bm.name || '',
           specialty: bm.specialty || '',
           phone: bm.phone || '',
           email: bm.email || '',
           notes: bm.notes || '',
-          ...bm, // Keep original fields for display
         }))
         const masterNames = new Set(combined.map((m: any) => m.name?.toLowerCase()))
 
@@ -467,6 +467,7 @@ export default function ModulePage() {
                 avg_rating: gm.avg_rating || 0,
                 review_count: gm.review_count || 0,
               })
+              masterNames.add(gm.name?.toLowerCase())
             }
           })
         }
