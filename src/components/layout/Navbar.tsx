@@ -160,10 +160,6 @@ export default function Navbar() {
               className="text-slate-300 hover:text-white text-sm font-medium px-3 py-1.5 transition-colors">
               İlanları İncele
             </Link>
-            <Link href="/#carousel"
-              className="text-slate-300 hover:text-orange-400 text-sm font-medium px-3 py-1.5 transition-colors">
-              Güvenilir Ustalar
-            </Link>
             <Link href="/ustalar"
               className="text-slate-300 hover:text-white text-sm font-medium px-3 py-1.5 transition-colors">
               Usta Bul
@@ -288,10 +284,6 @@ export default function Navbar() {
             <Link href="/market" onClick={() => setOpen(false)}
               className="block text-slate-300 hover:text-white text-sm font-medium py-2.5 px-2 rounded-lg hover:bg-slate-800">
               İlanları İncele
-            </Link>
-            <Link href="/#carousel" onClick={() => setOpen(false)}
-              className="block text-slate-300 hover:text-orange-400 text-sm font-medium py-2.5 px-2 rounded-lg hover:bg-slate-800">
-              Güvenilir Ustalar
             </Link>
             <Link href="/ustalar" onClick={() => setOpen(false)}
               className="block text-slate-300 hover:text-white text-sm font-medium py-2.5 px-2 rounded-lg hover:bg-slate-800">
