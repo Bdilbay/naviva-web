@@ -384,7 +384,7 @@ function ListingCard({ listing, t }: { listing: Listing; t: Translations }) {
 function MasterCard({ master, t }: { master: MasterProfile; t: Translations }) {
   return (
     <Link href={`/ustalar/${master.id}`}
-      className="group block rounded-2xl border border-slate-700/60 bg-slate-800/50 hover:border-orange-500/40 hover:bg-slate-800 transition-all p-5 flex-shrink-0 w-72">
+      className="group rounded-2xl border border-slate-700/60 bg-slate-800/50 hover:border-orange-500/40 hover:bg-slate-800 transition-all p-5 flex flex-col h-full">
       <div className="flex items-center gap-3 mb-3">
         <div className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/30 overflow-hidden flex items-center justify-center flex-shrink-0">
           {master.photo_url ? (
