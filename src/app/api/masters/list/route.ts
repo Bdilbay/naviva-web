@@ -28,10 +28,10 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('master_profiles')
       .select('*')
-      .eq('listed_publicly', true)
+      .or(`listed_publicly.eq.true,listed_publicly.is.null`)
 
     if (search) {
-      query = query.ilike('full_name', `%${search}%`)
+      query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,city.ilike.%${search}%`)
     }
 
     if (specialty) {
@@ -39,10 +39,12 @@ export async function GET(request: NextRequest) {
     }
 
     if (city) {
-      query = query.eq('city', city)
+      query = query.ilike('city', `%${city}%`)
     }
 
     const { data, error } = await query
+      .order('avg_rating', { ascending: false, nullsFirst: false })
+      .order('review_count', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(60)
 

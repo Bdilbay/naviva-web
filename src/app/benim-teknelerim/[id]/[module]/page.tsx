@@ -5,8 +5,9 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, AlertCircle, ChevronDown, Edit2, Save, X, Plus, Trash2, Check, Info } from 'lucide-react'
+import { ArrowLeft, AlertCircle, ChevronDown, Edit2, Save, X, Plus, Trash2, Check, Info, Phone, Mail, Star } from 'lucide-react'
 import { getFeaturedAnnouncement, type Announcement } from '@/services/announcement_service'
+import { RatingModal } from '@/components/RatingModal'
 
 interface Boat {
   id: string
@@ -297,31 +298,57 @@ export default function ModulePage() {
   const [activeFilter, setActiveFilter] = useState('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [announcement, setAnnouncement] = useState<Announcement | null>(null)
+  const [ratingModalOpen, setRatingModalOpen] = useState(false)
+  const [ratingMasterData, setRatingMasterData] = useState<{ id: string; name: string; item: ModuleItem } | null>(null)
+  const [masterDetailOpen, setMasterDetailOpen] = useState(false)
+  const [selectedMaster, setSelectedMaster] = useState<any>(null)
+  const [masterSearch, setMasterSearch] = useState('')
+  const [currentUser, setCurrentUser] = useState<any>(null)
 
   const config = MODULE_CONFIG[moduleKey] || MODULE_CONFIG.bilgiler
 
   // Filter logic for different modules
   const getFilteredItems = (): ModuleItem[] => {
+    let result = items
+
+    if (moduleKey === 'ustalar' && masterSearch) {
+      const query = masterSearch.toLowerCase()
+      console.log('🔍 Filtering ustalar:', { query, total: result.length, masterSearch })
+      console.log('📋 Items before filter:', result.map(i => ({ name: i.name, specialty: i.specialty, phone: i.phone })))
+      result = result.filter(i => {
+        const name = (i.name || '').toLowerCase()
+        const specialty = (i.specialty || '').toLowerCase()
+        const phone = (i.phone || '').toLowerCase()
+        const matches = name.includes(query) || specialty.includes(query) || phone.includes(query)
+        console.log('  -', i.name, { name, specialty, phone, matches })
+        return matches
+      })
+      console.log('  ✅ Filtered result:', result.length, result.map(i => i.name))
+    }
+
     if (moduleKey === 'arizalar') {
       switch (activeFilter) {
-        case 'open': return items.filter(i => i.status === 'open')
-        case 'closed': return items.filter(i => i.status === 'closed')
-        case 'high': return items.filter(i => i.severity === 'high' && i.status === 'open')
-        default: return items
+        case 'open': return result.filter(i => i.status === 'open')
+        case 'closed': return result.filter(i => i.status === 'closed')
+        case 'high': return result.filter(i => i.severity === 'high' && i.status === 'open')
+        default: return result
       }
     }
     if (moduleKey === 'rota') {
       switch (activeFilter) {
-        case 'planned': return items.filter(i => i.status === 'planned')
-        case 'active': return items.filter(i => i.status === 'active')
-        case 'completed': return items.filter(i => i.status === 'completed')
-        default: return items
+        case 'planned': return result.filter(i => i.status === 'planned')
+        case 'active': return result.filter(i => i.status === 'active')
+        case 'completed': return result.filter(i => i.status === 'completed')
+        default: return result
       }
     }
-    return items
+    return result
   }
 
   const filteredItems = getFilteredItems()
+  if (moduleKey === 'ustalar') {
+    console.log('📌 getFilteredItems called:', { moduleKey, masterSearch, itemsCount: items.length, filteredCount: filteredItems.length })
+  }
 
   useEffect(() => {
     fetchData()
@@ -343,6 +370,8 @@ export default function ModulePage() {
         return
       }
 
+      setCurrentUser(session.user)
+
       // Fetch boat
       const { data: boatData, error: boatError } = await supabase
         .from('boats')
@@ -357,6 +386,94 @@ export default function ModulePage() {
       // Fetch module data
       if (moduleKey === 'bilgiler') {
         setItems([boatData as any])
+      } else if (moduleKey === 'ustalar') {
+        // For ustalar (masters), fetch boat-specific, user-registered global, and other global masters
+        console.log('🚀 Starting ustalar fetch for boat:', boatId)
+
+        const { data: boatMasters, error: boatMastersError } = await supabase
+          .from('boat_masters')
+          .select('*')
+          .eq('boat_id', boatId)
+          .order('name', { ascending: true })
+        console.log('📍 boatMasters:', { count: boatMasters?.length || 0, error: boatMastersError?.message })
+
+        // User's own registered masters
+        const { data: userMasters, error: userMastersError } = await supabase
+          .from('master_profiles')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('name', { ascending: true })
+        console.log('👤 userMasters:', { count: userMasters?.length || 0, error: userMastersError?.message })
+
+        // Other global masters (not user's own)
+        const { data: globalMasters, error: globalMastersError } = await supabase
+          .from('master_profiles')
+          .select('*')
+          .or(`listed_publicly.eq.true,listed_publicly.is.null`)
+          .neq('user_id', session.user.id)
+          .order('name', { ascending: true })
+        console.log('🌍 globalMasters:', { count: globalMasters?.length || 0, error: globalMastersError?.message })
+
+        if (boatMastersError) throw boatMastersError
+        if (userMastersError) throw userMastersError
+        if (globalMastersError) throw globalMastersError
+
+        // Combine: boat masters first, then user's global, then other global (avoiding duplicates)
+        const combined: any[] = (boatMasters || []).map((bm: any) => ({
+          id: bm.id,
+          name: bm.name || '',
+          specialty: bm.specialty || '',
+          phone: bm.phone || '',
+          email: bm.email || '',
+          notes: bm.notes || '',
+          ...bm, // Keep original fields for display
+        }))
+        const masterNames = new Set(combined.map((m: any) => m.name?.toLowerCase()))
+
+        // Add user's registered masters
+        if (userMasters) {
+          userMasters.forEach((um: any) => {
+            if (!masterNames.has(um.name?.toLowerCase())) {
+              combined.push({
+                id: um.id,
+                name: um.name || '',
+                specialty: Array.isArray(um.specialties) ? um.specialties.join(', ') : (Array.isArray(um.categories) ? um.categories.join(', ') : ''),
+                phone: um.phone || '',
+                email: um.email || '',
+                notes: um.bio || '',
+                is_global: true,
+                is_user_registered: true,
+                user_id: session.user.id,
+                avg_rating: um.avg_rating || 0,
+                review_count: um.review_count || 0,
+              })
+              masterNames.add(um.name?.toLowerCase())
+            }
+          })
+        }
+
+        // Add other global masters
+        if (globalMasters) {
+          globalMasters.forEach((gm: any) => {
+            if (!masterNames.has(gm.name?.toLowerCase())) {
+              combined.push({
+                id: gm.id,
+                name: gm.name || '',
+                specialty: Array.isArray(gm.specialties) ? gm.specialties.join(', ') : (Array.isArray(gm.categories) ? gm.categories.join(', ') : ''),
+                phone: gm.phone || '',
+                email: gm.email || '',
+                notes: gm.bio || '',
+                is_global: true,
+                avg_rating: gm.avg_rating || 0,
+                review_count: gm.review_count || 0,
+              })
+            }
+          })
+        }
+
+        console.log('✅ Ustalar loaded:', combined.length, combined)
+        console.table(combined.map(m => ({ name: m.name, specialty: m.specialty, phone: m.phone, is_user_registered: m.is_user_registered, is_global: m.is_global })))
+        setItems(combined as ModuleItem[])
       } else {
         const { data: moduleData, error: moduleError } = await supabase
           .from(config.table)
@@ -462,16 +579,33 @@ export default function ModulePage() {
         await fetchData()
       }
 
+      // Check if should show rating modal for maintenance completion
+      const statusChangedToDone = moduleKey === 'bakim' && formData.status === 'done' && formData.master_name
+      const wasPreviouslySomethingElse = !editingItem || editingItem.status !== 'done'
+      const willShowRating = statusChangedToDone && wasPreviouslySomethingElse
+
       setIsEditing(false)
       setEditingItem(null)
       setFormData({})
-      setError('') // Clear any previous errors
-      setShowSuccessModal(true)
-      setTimeout(() => {
-        setShowSuccessModal(false)
-        // Navigate back to boat detail page
-        router.push(`/benim-teknelerim/${boatId}`)
-      }, 1500)
+      setError('')
+
+      if (willShowRating) {
+        console.log('⭐ Show rating dialog for:', formData.master_name)
+        // Show rating modal - don't show success modal
+        setRatingMasterData({
+          id: formData.master_name,
+          name: formData.master_name,
+          item: { ...editingItem, ...formData }
+        })
+        setRatingModalOpen(true)
+      } else {
+        // Show success modal for non-rating saves
+        setShowSuccessModal(true)
+        setTimeout(() => {
+          setShowSuccessModal(false)
+          router.push(`/benim-teknelerim/${boatId}`)
+        }, 1500)
+      }
     } catch (err) {
       console.error('Save error:', err)
       setError(err instanceof Error ? err.message : 'İşlem başarısız')
@@ -516,6 +650,16 @@ export default function ModulePage() {
 
       if (updateError) throw updateError
       setItems(items.map(i => i.id === item.id ? { ...i, status: newStatus } : i))
+
+      // Show rating modal for maintenance completion with master
+      if (moduleKey === 'bakim' && newStatus === 'completed' && item.master_name) {
+        setRatingMasterData({
+          id: item.id,
+          name: item.master_name,
+          item: item
+        })
+        setRatingModalOpen(true)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Durum güncellenemedi')
     }
@@ -800,6 +944,22 @@ export default function ModulePage() {
               </div>
             )}
 
+            {/* Search Box for Ustalar */}
+            {moduleKey === 'ustalar' && (
+              <div className="mb-6">
+                <input
+                  type="text"
+                  placeholder="Usta ara... (ad, uzmanlık, telefon)"
+                  value={masterSearch}
+                  onChange={(e) => setMasterSearch(e.target.value)}
+                  className="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-orange-500 text-sm"
+                />
+                {items.length === 0 && !loading && (
+                  <p className="text-xs text-slate-500 mt-2">Henüz usta eklenmemiş</p>
+                )}
+              </div>
+            )}
+
             {/* Filter Chips */}
             {(moduleKey === 'arizalar' || moduleKey === 'rota') && items.length > 0 && (
               <div className="mb-6 flex gap-3 overflow-x-auto pb-2">
@@ -839,7 +999,10 @@ export default function ModulePage() {
                               setEditingItem(item)
                               setFormData(item)
                               setIsModalOpen(true)
-                            }} onDelete={() => handleDelete(item.id)} onToggle={() => handleToggleStatus(item)} />
+                            }} onDelete={() => handleDelete(item.id)} onToggle={() => handleToggleStatus(item)} onView={() => {
+                              setSelectedMaster(item)
+                              setMasterDetailOpen(true)
+                            }} />
                           ))}
                         </div>
                       </div>
@@ -852,7 +1015,10 @@ export default function ModulePage() {
                         setEditingItem(item)
                         setFormData(item)
                         setIsModalOpen(true)
-                      }} onDelete={() => handleDelete(item.id)} onToggle={() => handleToggleStatus(item)} />
+                      }} onDelete={() => handleDelete(item.id)} onToggle={() => handleToggleStatus(item)} onView={() => {
+                        setSelectedMaster(item)
+                        setMasterDetailOpen(true)
+                      }} />
                     ))}
                   </div>
                 )}
@@ -902,6 +1068,167 @@ export default function ModulePage() {
                 <p className="text-xl font-semibold text-white mb-2">Kaydedildi</p>
                 <p className="text-sm text-slate-400">Kapatmak için tıklayın</p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Rating Modal */}
+        {ratingModalOpen && ratingMasterData && (
+          <RatingModal
+            masterId={ratingMasterData.id}
+            masterName={ratingMasterData.name}
+            boatId={boatId}
+            onClose={() => {
+              setRatingModalOpen(false)
+              setRatingMasterData(null)
+              setTimeout(() => {
+                router.push(`/benim-teknelerim/${boatId}`)
+              }, 100)
+            }}
+            onSuccess={() => {
+              setRatingModalOpen(false)
+              setRatingMasterData(null)
+              setShowSuccessModal(true)
+              setTimeout(() => {
+                setShowSuccessModal(false)
+                setTimeout(() => {
+                  router.push(`/benim-teknelerim/${boatId}`)
+                }, 500)
+              }, 1500)
+            }}
+          />
+        )}
+
+        {/* Master Detail Modal */}
+        {masterDetailOpen && selectedMaster && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-800/95 border border-slate-700 rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white">{selectedMaster.name}</h2>
+                <button
+                  onClick={() => {
+                    setMasterDetailOpen(false)
+                    setSelectedMaster(null)
+                  }}
+                  className="p-2 hover:bg-slate-700 rounded transition-colors"
+                >
+                  <X size={24} className="text-slate-400" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Rating Section */}
+                {(selectedMaster.avg_rating !== undefined || selectedMaster.review_count !== undefined) && (
+                  <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-slate-400 text-sm mb-2">Usta Değerlendirmesi</p>
+                        <div className="flex items-center gap-3">
+                          <div className="flex gap-0.5">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star
+                                key={i}
+                                size={18}
+                                className={`${
+                                  i < Math.round(selectedMaster.avg_rating || 0)
+                                    ? 'fill-yellow-400 text-yellow-400'
+                                    : 'fill-slate-600 text-slate-600'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-lg font-bold text-white">{(selectedMaster.avg_rating || 0).toFixed(1)}</span>
+                          {selectedMaster.review_count > 0 && (
+                            <span className="text-slate-400">({selectedMaster.review_count} değerlendirme)</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setRatingMasterData({
+                            id: selectedMaster.id,
+                            name: selectedMaster.name,
+                            item: selectedMaster,
+                          })
+                          setRatingModalOpen(true)
+                          setMasterDetailOpen(false)
+                        }}
+                        className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      >
+                        ⭐ Değerlendir
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Specialty */}
+                {selectedMaster.specialty && (
+                  <div>
+                    <p className="text-slate-400 text-sm mb-2">Uzmanlık Alanları</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedMaster.specialty.split(',').map((spec: string, i: number) => (
+                        <span key={i} className="px-3 py-1 bg-orange-500/15 border border-orange-500/30 text-orange-300 rounded-full text-sm">
+                          {spec.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Contact Info */}
+                <div>
+                  <p className="text-slate-400 text-sm mb-3">İletişim Bilgileri</p>
+                  <div className="space-y-2">
+                    {selectedMaster.phone && (
+                      <p className="flex items-center gap-3 text-white">
+                        <Phone size={16} className="text-orange-400" />
+                        {selectedMaster.phone}
+                      </p>
+                    )}
+                    {selectedMaster.email && (
+                      <p className="flex items-center gap-3 text-white">
+                        <Mail size={16} className="text-orange-400" />
+                        {selectedMaster.email}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Notes */}
+                {selectedMaster.notes && (
+                  <div>
+                    <p className="text-slate-400 text-sm mb-2">Notlar</p>
+                    <p className="text-white bg-slate-900/50 rounded-lg p-3">{selectedMaster.notes}</p>
+                  </div>
+                )}
+
+                {/* Status Badge */}
+                <div className="flex items-center gap-2">
+                  {selectedMaster.is_user_registered ? (
+                    <span className="px-3 py-1 bg-blue-500/20 border border-blue-500/50 text-blue-400 rounded-full text-sm font-medium">
+                      👤 Kullanıcı Kaydı
+                    </span>
+                  ) : selectedMaster.is_global ? (
+                    <span className="px-3 py-1 bg-orange-500/20 border border-orange-500/50 text-orange-400 rounded-full text-sm font-medium">
+                      🌍 Global Usta
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 bg-slate-700 border border-slate-600 text-slate-400 rounded-full text-sm font-medium">
+                      📌 Tekneye Özel
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setMasterDetailOpen(false)
+                  setSelectedMaster(null)
+                }}
+                className="mt-8 w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
+              >
+                Kapat
+              </button>
             </div>
           </div>
         )}
@@ -1164,7 +1491,7 @@ function FilterChip({ label, value, active, onClick, color = 'from-slate-600 to-
   )
 }
 
-function ItemCard({ item, moduleKey, config, onEdit, onDelete, onToggle }: { item: ModuleItem; moduleKey: string; config: any; onEdit: () => void; onDelete: () => void; onToggle: () => void }) {
+function ItemCard({ item, moduleKey, config, onEdit, onDelete, onToggle, onView }: { item: ModuleItem; moduleKey: string; config: any; onEdit: () => void; onDelete: () => void; onToggle: () => void; onView?: () => void }) {
   const getStatusColor = (status: string) => {
     if (['open', 'planned', 'active'].includes(status)) return 'bg-orange-500/20 border-orange-500/50 text-orange-400'
     if (['closed', 'completed'].includes(status)) return 'bg-green-500/20 border-green-500/50 text-green-400'
@@ -1207,11 +1534,13 @@ function ItemCard({ item, moduleKey, config, onEdit, onDelete, onToggle }: { ite
   const isClosed = item.status === 'closed' || item.status === 'completed'
 
   return (
-    <div className={`rounded-xl border p-4 transition-all ${
-      isClosed
-        ? 'bg-white/5 border-white/15'
-        : `bg-white/10 ${getCardBorderColor(moduleKey, item.severity)}`
-    }`}>
+    <div
+      onClick={() => moduleKey === 'ustalar' && onView?.()}
+      className={`rounded-xl border p-4 transition-all ${
+        isClosed
+          ? 'bg-white/5 border-white/15'
+          : `bg-white/10 ${getCardBorderColor(moduleKey, item.severity)}`
+      } ${moduleKey === 'ustalar' ? 'cursor-pointer hover:border-orange-500/50 hover:bg-white/15' : ''}`}>
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex gap-2 flex-wrap">
@@ -1233,7 +1562,23 @@ function ItemCard({ item, moduleKey, config, onEdit, onDelete, onToggle }: { ite
 
         <h4 className={`text-base font-semibold ${isClosed ? 'text-white/60' : 'text-white'}`}>{title}</h4>
 
-        {item.description && (
+        {moduleKey === 'ustalar' && (
+          <div className="text-white/70 text-sm space-y-1">
+            {item.specialty && <p>{item.specialty}</p>}
+            <div className="flex items-center gap-3 flex-wrap">
+              {item.phone && <span>📱 {item.phone}</span>}
+              {item.email && <span>✉️ {item.email}</span>}
+            </div>
+            {item.is_global && item.avg_rating !== undefined && (
+              <div className="flex items-center gap-2">
+                <span>⭐ {item.avg_rating.toFixed(1)}</span>
+                {item.review_count > 0 && <span className="text-white/50">({item.review_count} değerlendirme)</span>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {item.description && moduleKey !== 'ustalar' && (
           <p className="text-white/60 text-sm line-clamp-2">{item.description}</p>
         )}
 
@@ -1250,12 +1595,24 @@ function ItemCard({ item, moduleKey, config, onEdit, onDelete, onToggle }: { ite
                 {item.status === 'open' || item.status === 'active' ? '✓' : '↻'}
               </button>
             )}
-            <button onClick={onEdit} className="p-2 hover:bg-white/10 rounded transition-colors text-orange-400 hover:text-orange-300">
-              <Edit2 size={16} />
-            </button>
-            <button onClick={onDelete} className="p-2 hover:bg-white/10 rounded transition-colors text-red-400 hover:text-red-300">
-              <Trash2 size={16} />
-            </button>
+            {moduleKey === 'ustalar' && item.is_global ? (
+              <div className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                item.is_user_registered
+                  ? 'text-blue-400 bg-blue-500/10 border border-blue-500/30'
+                  : 'text-orange-400 bg-orange-500/10 border border-orange-500/30'
+              }`}>
+                {item.is_user_registered ? '👤 Kullanıcı' : '🌍 Global'}
+              </div>
+            ) : (
+              <>
+                <button onClick={onEdit} className="p-2 hover:bg-white/10 rounded transition-colors text-orange-400 hover:text-orange-300">
+                  <Edit2 size={16} />
+                </button>
+                <button onClick={onDelete} className="p-2 hover:bg-white/10 rounded transition-colors text-red-400 hover:text-red-300">
+                  <Trash2 size={16} />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -1279,15 +1636,15 @@ function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave
         // Tekneye özel ustalar
         const { data: boatMasters, error: error1 } = await supabase
           .from('boat_masters')
-          .select('name, id')
+          .select('name, id, specialty, phone, email')
           .eq('boat_id', boatId)
           .order('name', { ascending: true })
 
         // Global "Usta Bul" listesi (kayıtlı olan)
         const { data: globalMasters, error: error2 } = await supabase
           .from('master_profiles')
-          .select('name, id')
-          .eq('listed_publicly', true)
+          .select('id, name, categories, phone, email, avg_rating, review_count')
+          .or(`listed_publicly.eq.true,listed_publicly.is.null`)
           .order('name', { ascending: true })
 
         console.log('Boat masters:', boatMasters, 'Global masters:', globalMasters)
@@ -1296,9 +1653,20 @@ function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave
         if (error2) console.error('Global masters error:', error2)
 
         // Tekne ustalarını önce, sonra global listesini ekle (duplikasyonu önle)
+        const transformedGlobal = (globalMasters || []).map((gm: any) => ({
+          id: gm.id,
+          name: gm.name,
+          specialty: Array.isArray(gm.categories) ? gm.categories.join(', ') : gm.categories,
+          phone: gm.phone,
+          email: gm.email,
+          avg_rating: gm.avg_rating,
+          review_count: gm.review_count,
+          is_global: true,
+        }))
+
         const allMasters = [
           ...(boatMasters || []),
-          ...(globalMasters || []).filter(
+          ...transformedGlobal.filter(
             gm => !(boatMasters || []).some(bm => bm.name === gm.name)
           )
         ]
@@ -1621,9 +1989,13 @@ function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave
               ) : (
                 <div className="space-y-2 p-4">
                   {masters
-                    .filter(m =>
-                      m.name.toLowerCase().includes(masterModalSearch.toLowerCase())
-                    )
+                    .filter(m => {
+                      const query = masterModalSearch.toLowerCase()
+                      const name = (m.name || '').toLowerCase()
+                      const specialty = (m.specialty || '').toLowerCase()
+                      const phone = (m.phone || '').toLowerCase()
+                      return name.includes(query) || specialty.includes(query) || phone.includes(query)
+                    })
                     .map(master => (
                       <button
                         key={master.id || master.name}
@@ -1634,7 +2006,19 @@ function EditFormModal({ item, moduleKey, config, formData, onFormChange, onSave
                         }}
                         className="w-full text-left px-4 py-3 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-orange-500 text-white transition-colors"
                       >
-                        {master.name}
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium">{master.name}</div>
+                            {master.specialty && <div className="text-xs text-slate-400">{master.specialty}</div>}
+                            {master.phone && <div className="text-xs text-slate-500">{master.phone}</div>}
+                          </div>
+                          {master.is_global && master.avg_rating !== undefined && (
+                            <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                              <span className="text-xs text-orange-400">⭐</span>
+                              <span className="text-xs text-orange-400 font-medium">{master.avg_rating.toFixed(1)}</span>
+                            </div>
+                          )}
+                        </div>
                       </button>
                     ))}
                 </div>

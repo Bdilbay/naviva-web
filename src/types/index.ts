@@ -48,8 +48,14 @@ export interface MasterProfile {
   phone?: string
   email?: string
   specialties: string[]
+  categories?: string[]
   experience_years?: number
   photo_url?: string
+  work_photo_urls?: string[]
+  avg_rating?: number
+  review_count?: number
+  verified?: boolean
+  region?: string
   listed_publicly: boolean
   created_at: string
 }

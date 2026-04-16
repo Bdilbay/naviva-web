@@ -245,10 +245,10 @@ function MasterCard({ master, yearsExp, defaultTitle, photoAlt }: {
   const name = master.full_name || master.name || 'Usta'
   const city = master.location_city || master.city
   const specialties = master.specialties || master.categories || []
-  const photoUrl = master.photo_url || master.work_photo_urls?.[0]
+  const photoUrl = master.photo_url || (Array.isArray(master.work_photo_urls) && master.work_photo_urls.length > 0 ? master.work_photo_urls[0] : null)
   const verified = master.verified || false
-  const rating = master.rating || 0
-  const reviewCount = master.review_count || 0
+  const rating = master.avg_rating ?? master.rating ?? 0
+  const reviewCount = master.review_count ?? 0
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -338,39 +338,41 @@ function MasterCard({ master, yearsExp, defaultTitle, photoAlt }: {
 
           {/* Location */}
           {city && (
-            <p className="text-slate-500 text-xs flex items-center gap-1 mb-3">
+            <p className="text-slate-500 text-xs flex items-center gap-1 mb-2">
               <MapPin className="w-3 h-3" />{city}
             </p>
           )}
 
-          {/* Rating */}
-          {rating > 0 && (
-            <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-700/50">
+          {/* Specialties + Rating */}
+          <div className="flex flex-wrap items-center gap-2 mb-2 pb-3 border-b border-slate-700/50">
+            {/* Specialties */}
+            {specialties?.length > 0 && (
+              <div className="flex flex-wrap gap-1 flex-1">
+                {specialties.slice(0, 2).map((s: string) => (
+                  <span key={s} className="bg-orange-500/15 text-orange-300 text-xs px-2 py-1 rounded-md border border-orange-500/20">
+                    {s}
+                  </span>
+                ))}
+                {specialties.length > 2 && (
+                  <span className="text-slate-600 text-xs px-2 py-1">+{specialties.length - 2}</span>
+                )}
+              </div>
+            )}
+
+            {/* Rating Stars */}
+            <div className="flex items-center gap-1 ml-auto flex-shrink-0">
               <div className="flex items-center gap-0.5">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star
                     key={i}
-                    className={`w-3 h-3 ${i < Math.round(rating) ? 'fill-orange-400 text-orange-400' : 'text-slate-700'}`}
+                    className={`w-3 h-3 ${i < Math.round(rating) ? 'fill-yellow-400 text-yellow-400' : 'fill-slate-700 text-slate-700'}`}
                   />
                 ))}
               </div>
-              <span className="text-xs text-slate-500">({reviewCount} yorum)</span>
+              <span className="text-xs text-slate-400">{rating.toFixed(1)}</span>
+              {reviewCount > 0 && <span className="text-xs text-slate-500 whitespace-nowrap">({reviewCount})</span>}
             </div>
-          )}
-
-          {/* Specialties */}
-          {specialties?.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {specialties.slice(0, 2).map((s: string) => (
-                <span key={s} className="bg-orange-500/15 text-orange-300 text-xs px-2 py-1 rounded-md border border-orange-500/20">
-                  {s}
-                </span>
-              ))}
-              {specialties.length > 2 && (
-                <span className="text-slate-600 text-xs px-2 py-1">+{specialties.length - 2}</span>
-              )}
-            </div>
-          )}
+          </div>
         </div>
       </Link>
 

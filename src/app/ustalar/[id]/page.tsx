@@ -8,7 +8,7 @@ import { getTranslations } from '@/lib/i18n/server'
 
 async function getMaster(id: string): Promise<MasterProfile | null> {
   const { data } = await supabase
-    .from('master_profiles').select('*').eq('id', id).eq('listed_publicly', true).single()
+    .from('master_profiles').select('*').eq('id', id).or(`listed_publicly.eq.true,listed_publicly.is.null`).single()
   return data as MasterProfile | null
 }
 
@@ -55,10 +55,25 @@ export default async function MasterDetailPage({ params }: { params: Promise<{ i
                   )}
                   {master.experience_years && (
                     <p className="text-slate-500 text-sm flex items-center gap-1.5 mt-1">
-                      <Star className="w-3.5 h-3.5 text-orange-400" />
+                      <Calendar className="w-3.5 h-3.5 text-orange-400" />
                       {master.experience_years} {t.masterDetail.yearsExp}
                     </p>
                   )}
+                  {/* Rating */}
+                  <div className="flex items-center gap-2 mt-3">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${i < Math.round(master.avg_rating ?? 0) ? 'fill-yellow-400 text-yellow-400' : 'text-slate-700'}`}
+                      />
+                    ))}
+                    <span className="text-yellow-400 font-bold text-sm ml-1">
+                      {(master.avg_rating ?? 0).toFixed(1)}
+                    </span>
+                    {master.review_count > 0 && (
+                      <span className="text-slate-500 text-sm">({master.review_count})</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

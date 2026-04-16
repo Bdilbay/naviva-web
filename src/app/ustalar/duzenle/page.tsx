@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Save, Loader2, Check } from 'lucide-react'
+import { Save, Loader2, Check, Upload, X } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import Image from 'next/image'
 
 const SPECIALTIES = [
   'Motor Bakım', 'Elektrik', 'Tekne Boyama', 'Döşeme', 'Yelken Tamiri',
@@ -39,6 +40,7 @@ export default function UstaDuzenlePage() {
     specialties: [] as string[],
     listed_publicly: false,
   })
+  const [photoUploading, setPhotoUploading] = useState(false)
 
   useEffect(() => {
     const init = async () => {
@@ -98,6 +100,32 @@ export default function UstaDuzenlePage() {
         ? f.specialties.filter(x => x !== s)
         : [...f.specialties, s],
     }))
+  }
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !profileId) return
+
+    setPhotoUploading(true)
+    try {
+      const fileName = `master_${profileId}_${Date.now()}.jpg`
+      const { data, error } = await supabase.storage
+        .from('master_photos')
+        .upload(fileName, file, { upsert: false })
+
+      if (error) throw error
+
+      const { data: urlData } = supabase.storage
+        .from('master_photos')
+        .getPublicUrl(fileName)
+
+      setForm(f => ({ ...f, photo_url: urlData.publicUrl }))
+    } catch (err) {
+      console.error('Photo upload error:', err)
+      setError('Fotoğraf yüklenirken hata oluştu')
+    } finally {
+      setPhotoUploading(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -173,10 +201,66 @@ export default function UstaDuzenlePage() {
             </div>
 
             <div>
-              <label className="block text-sm text-slate-300 mb-1.5">{t.masterEdit.photoUrl}</label>
-              <input type="url" value={form.photo_url} onChange={e => setForm(f => ({ ...f, photo_url: e.target.value }))}
-                className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-orange-500"
-                placeholder="https://..." />
+              <label className="block text-sm text-slate-300 mb-3">{t.masterEdit.photoUrl}</label>
+              <div className="space-y-3">
+                {/* Photo Preview */}
+                {form.photo_url && (
+                  <div className="relative w-full h-48 rounded-lg overflow-hidden border border-slate-600 bg-slate-700">
+                    <Image
+                      src={form.photo_url}
+                      alt="Preview"
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, photo_url: '' }))}
+                      className="absolute top-2 right-2 bg-red-500/90 hover:bg-red-600 p-1.5 rounded-lg transition-colors"
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Upload Button or URL input */}
+                <div className="flex gap-2">
+                  <label className={`flex-1 flex items-center justify-center gap-2 border rounded-lg px-3 py-2.5 text-sm cursor-pointer transition-colors ${
+                    photoUploading
+                      ? 'bg-slate-600 border-slate-500 text-slate-400 opacity-60'
+                      : 'bg-slate-700 hover:bg-slate-600 border-slate-600 text-slate-300'
+                  }`}>
+                    {photoUploading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Yükleniyor...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        Fotoğraf Yükle
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      disabled={photoUploading}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* URL Fallback */}
+                <div className="text-xs text-slate-500 text-center py-2">veya</div>
+                <input
+                  type="url"
+                  value={form.photo_url}
+                  onChange={e => setForm(f => ({ ...f, photo_url: e.target.value }))}
+                  className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-orange-500"
+                  placeholder="https://example.com/photo.jpg"
+                />
+              </div>
             </div>
           </section>
 
