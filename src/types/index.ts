@@ -41,10 +41,10 @@ export interface Listing {
 export interface MasterProfile {
   id: string
   user_id: string
-  full_name: string
+  name: string
   title?: string
   bio?: string
-  location_city?: string
+  city?: string
   phone?: string
   email?: string
   specialties: string[]

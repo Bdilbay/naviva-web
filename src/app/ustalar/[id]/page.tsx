@@ -30,7 +30,7 @@ export default async function MasterDetailPage({ params }: { params: Promise<{ i
             <ArrowLeft className="w-3.5 h-3.5" /> {t.masterDetail.back}
           </Link>
           <span>/</span>
-          <span className="text-slate-400">{master.full_name}</span>
+          <span className="text-slate-400">{master.name}</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -41,17 +41,17 @@ export default async function MasterDetailPage({ params }: { params: Promise<{ i
               <div className="flex items-start gap-5">
                 <div className="w-20 h-20 rounded-2xl bg-orange-500/15 border border-orange-500/30 overflow-hidden flex items-center justify-center flex-shrink-0">
                   {master.photo_url ? (
-                    <Image src={master.photo_url} alt={master.full_name || t.masters.masterPhotoAlt} width={80} height={80} className="object-cover w-full h-full" unoptimized />
+                    <Image src={master.photo_url} alt={master.name || t.masters.masterPhotoAlt} width={80} height={80} className="object-cover w-full h-full" unoptimized />
                   ) : (
                     <Users className="w-8 h-8 text-orange-400" />
                   )}
                 </div>
                 <div>
-                  <h1 className="text-white text-xl font-bold mb-1">{master.full_name}</h1>
+                  <h1 className="text-white text-xl font-bold mb-1">{master.name}</h1>
                   <p className="text-orange-400 text-sm font-medium mb-2">{master.title ?? t.masterDetail.defaultTitle}</p>
-                  {master.location_city && (
+                  {master.city && (
                     <p className="text-slate-500 text-sm flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5" />{master.location_city}
+                      <MapPin className="w-3.5 h-3.5" />{master.city}
                     </p>
                   )}
                   {master.experience_years && (
@@ -148,7 +148,7 @@ export default async function MasterDetailPage({ params }: { params: Promise<{ i
         </div>
 
         {/* Reviews Section */}
-        <ReviewsSection masterId={master.id} masterName={master.full_name} />
+        <ReviewsSection masterId={master.id} masterName={master.name} />
       </div>
     </div>
   )

@@ -8,8 +8,8 @@ import { supabase } from '@/lib/supabase'
 
 interface MasterProfile {
   id: string
-  full_name: string
-  location_city?: string
+  name: string
+  city?: string
   photo_url?: string
   avg_rating: number
   review_count: number
@@ -33,7 +33,7 @@ export function TrustedMastersList({ limit = 10, showTitle = true }: TrustedMast
     try {
       const { data, error } = await supabase
         .from('master_profiles')
-        .select('id, full_name, location_city, photo_url, avg_rating, review_count, specialties')
+        .select('id, name, city, photo_url, avg_rating, review_count, specialties')
         .or(`listed_publicly.eq.true,listed_publicly.is.null`)
         .gt('avg_rating', 0)
         .order('avg_rating', { ascending: false })
@@ -90,7 +90,7 @@ export function TrustedMastersList({ limit = 10, showTitle = true }: TrustedMast
               {master.photo_url ? (
                 <Image
                   src={master.photo_url}
-                  alt={master.full_name}
+                  alt={master.name}
                   width={300}
                   height={160}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -113,10 +113,10 @@ export function TrustedMastersList({ limit = 10, showTitle = true }: TrustedMast
 
             {/* Content */}
             <div className="p-4">
-              <h3 className="text-slate-100 font-bold text-sm leading-tight truncate">{master.full_name}</h3>
+              <h3 className="text-slate-100 font-bold text-sm leading-tight truncate">{master.name}</h3>
 
-              {master.location_city && (
-                <p className="text-slate-500 text-xs mt-1">{master.location_city}</p>
+              {master.city && (
+                <p className="text-slate-500 text-xs mt-1">{master.city}</p>
               )}
 
               {/* Rating Stars */}

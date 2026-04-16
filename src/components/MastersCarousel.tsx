@@ -79,7 +79,7 @@ function MasterCardItem({
           {master.photo_url ? (
             <Image
               src={master.photo_url}
-              alt={master.full_name || t.home.masterPhotoAlt}
+              alt={master.name || t.home.masterPhotoAlt}
               width={64}
               height={64}
               className="object-cover w-full h-full"
@@ -91,7 +91,7 @@ function MasterCardItem({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white font-bold text-base leading-tight mb-1">
-            {master.full_name}
+            {master.name}
           </p>
           <p className="text-slate-400 text-sm mb-2">
             {master.title ?? t.home.defaultTitle}
@@ -126,10 +126,10 @@ function MasterCardItem({
       </div>
 
       {/* Location */}
-      {master.location_city && (
+      {master.city && (
         <p className="text-slate-400 text-xs flex items-center gap-1.5 mb-3 pb-3 border-b border-slate-700/50">
           <MapPin className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
-          <span className="truncate">{master.location_city}</span>
+          <span className="truncate">{master.city}</span>
         </p>
       )}
 

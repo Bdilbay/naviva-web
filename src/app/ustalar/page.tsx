@@ -242,9 +242,9 @@ function MasterCard({ master, yearsExp, defaultTitle, photoAlt }: {
   const [user, setUser] = useState<any>(null)
 
   // Handle both field name variations (mobile vs web)
-  const name = master.full_name || master.name || 'Usta'
-  const city = master.location_city || master.city
-  const specialties = master.specialties || master.categories || []
+  const name = master.name || master.full_name || 'Usta'
+  const city = master.city || master.location_city
+  const specialties = master.categories || master.specialties || []
   const photoUrl = master.photo_url || (Array.isArray(master.work_photo_urls) && master.work_photo_urls.length > 0 ? master.work_photo_urls[0] : null)
   const verified = master.verified || false
   const rating = master.avg_rating ?? master.rating ?? 0
