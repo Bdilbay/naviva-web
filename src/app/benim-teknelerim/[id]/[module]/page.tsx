@@ -1010,7 +1010,7 @@ export default function ModulePage() {
                     )
                   })
                 ) : (
-                  <div className="space-y-3">
+                  <div className={moduleKey === 'ustalar' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-3'}>
                     {filteredItems.map(item => (
                       <ItemCard key={item.id} item={item} moduleKey={moduleKey} config={config} onEdit={() => {
                         setEditingItem(item)
@@ -1493,6 +1493,114 @@ function FilterChip({ label, value, active, onClick, color = 'from-slate-600 to-
 }
 
 function ItemCard({ item, moduleKey, config, onEdit, onDelete, onToggle, onView }: { item: ModuleItem; moduleKey: string; config: any; onEdit: () => void; onDelete: () => void; onToggle: () => void; onView?: () => void }) {
+  // Special rendering for master cards (ustalar)
+  if (moduleKey === 'ustalar') {
+    const isUserOwned = !item.is_global
+    const isUserRegistered = item.is_user_registered
+
+    return (
+      <div className="group flex flex-col h-full rounded-xl overflow-hidden border border-white/10 bg-gradient-to-br from-white/10 to-white/5 hover:border-orange-500/50 hover:from-white/15 transition-all duration-300">
+        {/* Master Avatar/Header */}
+        <div className="relative w-full h-32 bg-gradient-to-br from-orange-500/20 to-orange-600/10 flex items-center justify-center overflow-hidden cursor-pointer" onClick={onView}>
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-2xl font-bold text-white/80">
+            {(item.name || 'U')[0].toUpperCase()}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 p-4 flex flex-col justify-between">
+          {/* Name & Specialty */}
+          <div>
+            <h3 className="text-white font-bold text-base leading-tight truncate">{item.name || 'Usta'}</h3>
+            {item.specialty && (
+              <p className="text-orange-400 text-xs mt-1 truncate">{item.specialty}</p>
+            )}
+          </div>
+
+          {/* Contact Info & Rating */}
+          <div className="my-3 pt-3 border-t border-white/10 space-y-1">
+            {/* Rating Stars on first line */}
+            {item.avg_rating !== undefined && (
+              <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      size={11}
+                      className={i < Math.round(item.avg_rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-white/20'}
+                    />
+                  ))}
+                </div>
+                <p className="text-yellow-400 text-xs font-semibold">
+                  {item.avg_rating.toFixed(1)}
+                </p>
+                {item.review_count > 0 && (
+                  <p className="text-white/40 text-xs">({item.review_count})</p>
+                )}
+              </div>
+            )}
+
+            {/* Phone and Email on same line if both exist */}
+            <div className="flex gap-2 text-xs text-white/60">
+              {item.phone && (
+                <p className="flex items-center gap-1 flex-1 min-w-0 truncate">
+                  <Phone size={10} className="flex-shrink-0" /> <span className="truncate">{item.phone}</span>
+                </p>
+              )}
+              {item.email && (
+                <p className="flex items-center gap-1 flex-1 min-w-0 truncate">
+                  <Mail size={10} className="flex-shrink-0" /> <span className="truncate">{item.email}</span>
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="mt-3 flex gap-2">
+            {isUserOwned && !isUserRegistered && (
+              <>
+                <button
+                  onClick={onEdit}
+                  className="flex-1 px-3 py-2 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 text-orange-400 text-xs font-semibold rounded-lg transition-colors"
+                >
+                  Düzenle
+                </button>
+                <button
+                  onClick={onDelete}
+                  className="flex-1 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 text-xs font-semibold rounded-lg transition-colors"
+                >
+                  Sil
+                </button>
+              </>
+            )}
+            {isUserRegistered && (
+              <>
+                <button
+                  onClick={onEdit}
+                  className="flex-1 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-400 text-xs font-semibold rounded-lg transition-colors"
+                >
+                  Düzenle
+                </button>
+                <button
+                  onClick={onDelete}
+                  className="flex-1 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 text-xs font-semibold rounded-lg transition-colors"
+                >
+                  Sil
+                </button>
+              </>
+            )}
+            {item.is_global && !isUserRegistered && (
+              <div className="w-full px-3 py-2 bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-medium rounded-lg text-center">
+                🌍 Global
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Original rendering for other modules
   const getStatusColor = (status: string) => {
     if (['open', 'planned', 'active'].includes(status)) return 'bg-orange-500/20 border-orange-500/50 text-orange-400'
     if (['closed', 'completed'].includes(status)) return 'bg-green-500/20 border-green-500/50 text-green-400'
@@ -1536,12 +1644,11 @@ function ItemCard({ item, moduleKey, config, onEdit, onDelete, onToggle, onView 
 
   return (
     <div
-      onClick={() => moduleKey === 'ustalar' && onView?.()}
       className={`rounded-xl border p-4 transition-all ${
         isClosed
           ? 'bg-white/5 border-white/15'
           : `bg-white/10 ${getCardBorderColor(moduleKey, item.severity)}`
-      } ${moduleKey === 'ustalar' ? 'cursor-pointer hover:border-orange-500/50 hover:bg-white/15' : ''}`}>
+      }`}>
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex gap-2 flex-wrap">
@@ -1563,23 +1670,7 @@ function ItemCard({ item, moduleKey, config, onEdit, onDelete, onToggle, onView 
 
         <h4 className={`text-base font-semibold ${isClosed ? 'text-white/60' : 'text-white'}`}>{title}</h4>
 
-        {moduleKey === 'ustalar' && (
-          <div className="text-white/70 text-sm space-y-1">
-            {item.specialty && <p>{item.specialty}</p>}
-            <div className="flex items-center gap-3 flex-wrap">
-              {item.phone && <span>📱 {item.phone}</span>}
-              {item.email && <span>✉️ {item.email}</span>}
-            </div>
-            {item.is_global && item.avg_rating !== undefined && (
-              <div className="flex items-center gap-2">
-                <span>⭐ {item.avg_rating.toFixed(1)}</span>
-                {item.review_count > 0 && <span className="text-white/50">({item.review_count} değerlendirme)</span>}
-              </div>
-            )}
-          </div>
-        )}
-
-        {item.description && moduleKey !== 'ustalar' && (
+        {item.description && (
           <p className="text-white/60 text-sm line-clamp-2">{item.description}</p>
         )}
 
@@ -1596,24 +1687,14 @@ function ItemCard({ item, moduleKey, config, onEdit, onDelete, onToggle, onView 
                 {item.status === 'open' || item.status === 'active' ? '✓' : '↻'}
               </button>
             )}
-            {moduleKey === 'ustalar' && item.is_global ? (
-              <div className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                item.is_user_registered
-                  ? 'text-blue-400 bg-blue-500/10 border border-blue-500/30'
-                  : 'text-orange-400 bg-orange-500/10 border border-orange-500/30'
-              }`}>
-                {item.is_user_registered ? '👤 Kullanıcı' : '🌍 Global'}
-              </div>
-            ) : (
-              <>
-                <button onClick={onEdit} className="p-2 hover:bg-white/10 rounded transition-colors text-orange-400 hover:text-orange-300">
-                  <Edit2 size={16} />
-                </button>
-                <button onClick={onDelete} className="p-2 hover:bg-white/10 rounded transition-colors text-red-400 hover:text-red-300">
-                  <Trash2 size={16} />
-                </button>
-              </>
-            )}
+            <>
+              <button onClick={onEdit} className="p-2 hover:bg-white/10 rounded transition-colors text-orange-400 hover:text-orange-300">
+                <Edit2 size={16} />
+              </button>
+              <button onClick={onDelete} className="p-2 hover:bg-white/10 rounded transition-colors text-red-400 hover:text-red-300">
+                <Trash2 size={16} />
+              </button>
+            </>
           </div>
         </div>
       </div>
