@@ -21,7 +21,7 @@ interface TrustedMastersListProps {
   showTitle?: boolean
 }
 
-export function TrustedMastersList({ limit = 6, showTitle = true }: TrustedMastersListProps) {
+export function TrustedMastersList({ limit = 10, showTitle = true }: TrustedMastersListProps) {
   const [masters, setMasters] = useState<MasterProfile[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -152,6 +152,16 @@ export function TrustedMastersList({ limit = 6, showTitle = true }: TrustedMaste
             </div>
           </Link>
         ))}
+      </div>
+
+      {/* View All Link */}
+      <div className="mt-8 text-center">
+        <Link
+          href="/ustalar"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 hover:border-orange-500/50 text-orange-400 hover:text-orange-300 rounded-lg font-medium transition-colors"
+        >
+          Tüm Ustalar →
+        </Link>
       </div>
     </div>
   )

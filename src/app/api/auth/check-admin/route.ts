@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
-      .single()
+      .in('role', ['admin', 'moderator', 'support'])
 
     if (error) {
       return NextResponse.json(
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const isAdmin = userData?.role === 'super_admin' || userData?.role === 'moderator'
+    const isAdmin = userData && userData.length > 0
 
     return NextResponse.json({
       success: true,

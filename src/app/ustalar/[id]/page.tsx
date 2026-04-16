@@ -5,6 +5,7 @@ import { ArrowLeft, MapPin, Phone, Mail, Star, Wrench, Users, Calendar } from 'l
 import { supabase } from '@/lib/supabase'
 import { MasterProfile } from '@/types'
 import { getTranslations } from '@/lib/i18n/server'
+import ReviewsSection from '@/components/masters/ReviewsSection'
 
 async function getMaster(id: string): Promise<MasterProfile | null> {
   const { data } = await supabase
@@ -145,6 +146,9 @@ export default async function MasterDetailPage({ params }: { params: Promise<{ i
             </div>
           </div>
         </div>
+
+        {/* Reviews Section */}
+        <ReviewsSection masterId={master.id} masterName={master.full_name} />
       </div>
     </div>
   )

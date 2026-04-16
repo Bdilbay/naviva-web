@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { Search, Users, Shield, ChevronRight, Ship, Wrench, Calendar, Compass, MapPin, Star } from 'lucide-react'
+import { Search, Shield, ChevronRight, Ship, Wrench, Calendar, Compass, MapPin, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Listing, MasterProfile } from '@/types'
 import { getTranslations } from '@/lib/i18n/server'
@@ -8,6 +8,7 @@ import type { Translations } from '@/lib/i18n'
 import { CategorySection } from '@/components/home/CategorySection'
 import BannerSlot from '@/components/BannerSlot'
 import AnnouncementsBanner from '@/components/AnnouncementsBanner'
+import MastersCarousel from '@/components/MastersCarousel'
 
 async function getRecentListings(): Promise<Listing[]> {
   const { data } = await supabase
@@ -272,39 +273,7 @@ export default async function HomePage() {
                 {t.home.all} <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
-            <style>{`
-              @keyframes smoothScroll {
-                0% { transform: translateX(0); }
-                100% { transform: translateX(calc(-100% / 2)); }
-              }
-              .masters-carousel {
-                display: flex;
-                gap: 1rem;
-                animation: smoothScroll 60s linear infinite;
-                width: fit-content;
-              }
-              .masters-carousel:hover {
-                animation-play-state: paused;
-              }
-              .masters-wrapper {
-                overflow: hidden;
-                width: 100%;
-              }
-            `}</style>
-            <div className="masters-wrapper">
-              <div className="masters-carousel">
-                {masters.map(m => (
-                  <div key={`first-${m.id}`} className="flex-shrink-0 w-64">
-                    <MasterCard master={m} t={t} />
-                  </div>
-                ))}
-                {masters.map(m => (
-                  <div key={`second-${m.id}`} className="flex-shrink-0 w-64">
-                    <MasterCard master={m} t={t} />
-                  </div>
-                ))}
-              </div>
-            </div>
+            <MastersCarousel masters={masters} t={t} />
           </div>
         </section>
       )}
@@ -400,38 +369,6 @@ function ListingCard({ listing, t }: { listing: Listing; t: Translations }) {
           <span className="text-orange-400 font-bold text-sm">{price}</span>
         </div>
       </div>
-    </Link>
-  )
-}
-
-// ─── Master Card ──────────────────────────────────────────────────────────────
-function MasterCard({ master, t }: { master: MasterProfile; t: Translations }) {
-  return (
-    <Link href={`/ustalar/${master.id}`}
-      className="group rounded-2xl border border-slate-700/60 bg-slate-800/50 hover:border-orange-500/40 hover:bg-slate-800 transition-all p-5 flex flex-col h-full">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/30 overflow-hidden flex items-center justify-center flex-shrink-0">
-          {master.photo_url ? (
-            <Image src={master.photo_url} alt={master.full_name || t.home.masterPhotoAlt} width={44} height={44} className="object-cover w-full h-full" unoptimized />
-          ) : (
-            <Users className="w-4 h-4 text-orange-400" />
-          )}
-        </div>
-        <div>
-          <p className="text-slate-100 font-semibold text-sm">{master.full_name}</p>
-          <p className="text-slate-500 text-xs">{master.title ?? t.home.defaultTitle}</p>
-        </div>
-      </div>
-      {master.location_city && (
-        <p className="text-slate-500 text-xs flex items-center gap-1">
-          <MapPin className="w-3 h-3" />{master.location_city}
-        </p>
-      )}
-      {master.experience_years && (
-        <p className="text-slate-500 text-xs flex items-center gap-1 mt-1">
-          <Star className="w-3 h-3 text-orange-400" />{master.experience_years} {t.home.yearsExp}
-        </p>
-      )}
     </Link>
   )
 }
