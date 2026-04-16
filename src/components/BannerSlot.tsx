@@ -83,6 +83,8 @@ export default function BannerSlot({
             width={banner.width || 800}
             height={banner.height || 400}
             className="w-full h-full object-cover"
+            loading="eager"
+            priority
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-slate-700 to-slate-800 flex items-center justify-center p-6">
