@@ -18,7 +18,7 @@ async function getRecentListings(): Promise<Listing[]> {
 
 async function getRecentMasters(): Promise<MasterProfile[]> {
   const { data } = await supabase
-    .from('master_profiles').select('*').or(`listed_publicly.eq.true,listed_publicly.is.null`).limit(4)
+    .from('master_profiles').select('*').or(`listed_publicly.eq.true,listed_publicly.is.null`).limit(10)
   return (data as MasterProfile[]) ?? []
 }
 
