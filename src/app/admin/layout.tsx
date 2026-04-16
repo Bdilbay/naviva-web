@@ -22,20 +22,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return
       }
 
-      // Check user role (assuming it's stored in user metadata or a separate table)
-      const { data: userData } = await supabase
-        .from('users')
+      // Check user roles from user_roles table
+      const { data: roleData } = await supabase
+        .from('user_roles')
         .select('role')
-        .eq('id', session.user.id)
-        .single()
+        .eq('user_id', session.user.id)
+        .in('role', ['admin', 'moderator', 'support'])
 
-      const userRole = userData?.role || session.user.user_metadata?.role
-
-      // Only super-admin and moderators can access
-      if (userRole !== 'super_admin' && userRole !== 'moderator') {
+      // User must have at least one of: admin, moderator, or support role
+      if (!roleData || roleData.length === 0) {
         router.push('/')
         return
       }
+
+      // Get the first/primary role for display
+      const userRole = roleData[0]?.role || 'user'
 
       setUser(session.user)
       setRole(userRole)
@@ -175,7 +176,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <h1 className="text-white font-semibold text-lg">Admin Dashboard</h1>
           <div className="flex items-center gap-4">
             <span className="text-slate-400 text-sm">
-              {user?.email} • {role === 'super_admin' ? 'Super Admin' : 'Moderator'}
+              {user?.email} • {role === 'admin' ? 'Admin' : role === 'moderator' ? 'Moderatör' : 'Destek'}
             </span>
           </div>
         </header>
