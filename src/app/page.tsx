@@ -259,7 +259,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Ustalar - Carousel */}
+      {/* Ustalar - Horizontal Scroll */}
       {masters.length > 0 && (
         <section className="bg-slate-800/40 border-y border-slate-700/50 py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -272,24 +272,13 @@ export default async function HomePage() {
                 {t.home.all} <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
-            <style>{`
-              @keyframes carousel-scroll {
-                0% { transform: translateX(0); }
-                100% { transform: translateX(-50%); }
-              }
-              .carousel-container {
-                animation: carousel-scroll 40s linear infinite;
-              }
-              .carousel-container:hover {
-                animation-play-state: paused;
-              }
-            `}</style>
-            <div className="overflow-hidden">
-              <div className="carousel-container flex gap-6" style={{ width: 'fit-content' }}>
-                {/* First set */}
-                {masters.map(m => <MasterCard key={`first-${m.id}`} master={m} t={t} />)}
-                {/* Second set for infinite loop */}
-                {masters.map(m => <MasterCard key={`second-${m.id}`} master={m} t={t} />)}
+            <div className="overflow-x-auto pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 scrollbar-thin scrollbar-thumb-orange-500/50 scrollbar-track-slate-800">
+              <div className="flex gap-4" style={{ width: 'min-content' }}>
+                {masters.map(m => (
+                  <div key={m.id} className="flex-shrink-0 w-72">
+                    <MasterCard master={m} t={t} />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
