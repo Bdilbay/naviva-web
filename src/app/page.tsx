@@ -272,8 +272,8 @@ export default async function HomePage() {
                 {t.home.all} <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
-            <div className="overflow-hidden">
-              <div className="flex gap-4 animate-scroll" style={{ width: 'fit-content' }}>
+            <div className="overflow-hidden w-full">
+              <div className="flex gap-4 animate-scroll" style={{ width: 'max-content' }}>
                 {/* First set of masters */}
                 {masters.map(m => <MasterCard key={`first-${m.id}`} master={m} t={t} />)}
                 {/* Duplicate for infinite scroll effect */}
