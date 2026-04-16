@@ -272,11 +272,23 @@ export default async function HomePage() {
                 {t.home.all} <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
-            <div className="overflow-hidden w-full">
-              <div className="flex gap-4 animate-scroll" style={{ width: 'max-content' }}>
-                {/* First set of masters */}
+            <style>{`
+              @keyframes carousel-scroll {
+                0% { transform: translateX(0); }
+                100% { transform: translateX(-50%); }
+              }
+              .carousel-container {
+                animation: carousel-scroll 40s linear infinite;
+              }
+              .carousel-container:hover {
+                animation-play-state: paused;
+              }
+            `}</style>
+            <div className="overflow-hidden">
+              <div className="carousel-container flex gap-6" style={{ width: 'fit-content' }}>
+                {/* First set */}
                 {masters.map(m => <MasterCard key={`first-${m.id}`} master={m} t={t} />)}
-                {/* Duplicate for infinite scroll effect */}
+                {/* Second set for infinite loop */}
                 {masters.map(m => <MasterCard key={`second-${m.id}`} master={m} t={t} />)}
               </div>
             </div>
