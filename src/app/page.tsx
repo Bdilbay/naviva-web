@@ -260,6 +260,22 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* DEBUG */}
+      {masters.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-4">
+          <div className="bg-green-900/40 border border-green-700/60 p-4 rounded-lg text-green-300 text-sm font-semibold">
+            ✓ {masters.length} usta yüklendi - Veritabanından çekiliyor
+          </div>
+        </div>
+      )}
+      {masters.length === 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-4">
+          <div className="bg-red-900/40 border border-red-700/60 p-4 rounded-lg text-red-300 text-sm font-semibold">
+            ✗ Usta bulunamadı - Veritabanını kontrol et (master_profiles tablosu boş veya filtreleme yanlış)
+          </div>
+        </div>
+      )}
+
       {/* Ustalar - Auto Carousel */}
       {masters.length > 0 && (
         <section className="bg-slate-800/40 border-y border-slate-700/50 py-12">
