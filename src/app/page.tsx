@@ -259,11 +259,11 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Ustalar */}
+      {/* Ustalar - Carousel */}
       {masters.length > 0 && (
-        <section className="bg-slate-800/40 border-y border-slate-700/50 py-16">
+        <section className="bg-slate-800/40 border-y border-slate-700/50 py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-white text-xl font-bold">{t.home.trustedMasters}</h2>
                 <p className="text-slate-500 text-sm mt-1">{t.home.certifiedTechs}</p>
@@ -272,8 +272,13 @@ export default async function HomePage() {
                 {t.home.all} <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {masters.map(m => <MasterCard key={m.id} master={m} t={t} />)}
+            <div className="overflow-hidden">
+              <div className="flex gap-4 animate-scroll" style={{ width: 'fit-content' }}>
+                {/* First set of masters */}
+                {masters.map(m => <MasterCard key={`first-${m.id}`} master={m} t={t} />)}
+                {/* Duplicate for infinite scroll effect */}
+                {masters.map(m => <MasterCard key={`second-${m.id}`} master={m} t={t} />)}
+              </div>
             </div>
           </div>
         </section>
@@ -378,7 +383,7 @@ function ListingCard({ listing, t }: { listing: Listing; t: Translations }) {
 function MasterCard({ master, t }: { master: MasterProfile; t: Translations }) {
   return (
     <Link href={`/ustalar/${master.id}`}
-      className="group block rounded-2xl border border-slate-700/60 bg-slate-800/50 hover:border-orange-500/40 hover:bg-slate-800 transition-all p-5">
+      className="group block rounded-2xl border border-slate-700/60 bg-slate-800/50 hover:border-orange-500/40 hover:bg-slate-800 transition-all p-5 flex-shrink-0 w-72">
       <div className="flex items-center gap-3 mb-3">
         <div className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/30 overflow-hidden flex items-center justify-center flex-shrink-0">
           {master.photo_url ? (
