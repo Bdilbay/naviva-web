@@ -5,7 +5,7 @@ import { MasterProfile } from '@/types'
 import type { Translations } from '@/lib/i18n'
 import Link from 'next/link'
 import Image from 'next/image'
-import { MapPin, Star, Users, ChevronLeft, ChevronRight, Phone, Mail } from 'lucide-react'
+import { MapPin, Star, Users } from 'lucide-react'
 
 interface MastersCarouselProps {
   masters: MasterProfile[]
@@ -15,7 +15,6 @@ interface MastersCarouselProps {
 export default function MastersCarousel({ masters, t }: MastersCarouselProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [isHovered, setIsHovered] = useState(false)
-  const [selectedMaster, setSelectedMaster] = useState<MasterProfile | null>(masters[0] || null)
 
   useEffect(() => {
     if (!containerRef.current || masters.length === 0) return
@@ -50,10 +49,19 @@ export default function MastersCarousel({ masters, t }: MastersCarouselProps) {
   if (masters.length === 0) return null
 
   return (
-    <div className="space-y-6">
-      {/* Carousel */}
+    <div className="relative flex items-center gap-4">
+      {/* Left Arrow Button */}
+      <button
+        onClick={() => scroll('left')}
+        className="flex-shrink-0 p-3 rounded-full bg-orange-500 hover:bg-orange-400 text-white shadow-lg transition-colors text-2xl font-bold leading-none h-12 w-12 flex items-center justify-center"
+        title="Önceki"
+      >
+        &lt;
+      </button>
+
+      {/* Carousel Container */}
       <div
-        className="overflow-hidden rounded-lg relative group"
+        className="flex-1 overflow-hidden rounded-lg"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -64,91 +72,19 @@ export default function MastersCarousel({ masters, t }: MastersCarouselProps) {
         >
           {/* Display masters twice for seamless loop */}
           {[...masters, ...masters].map((master, idx) => (
-            <MasterCardItem
-              key={`${master.id}-${idx}`}
-              master={master}
-              t={t}
-              isSelected={selectedMaster?.id === master.id}
-              onSelect={setSelectedMaster}
-            />
+            <MasterCardItem key={`${master.id}-${idx}`} master={master} t={t} />
           ))}
         </div>
-
-        {/* Navigation Buttons */}
-        <button
-          onClick={() => scroll('left')}
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-orange-500/90 hover:bg-orange-500 text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Önceki"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <button
-          onClick={() => scroll('right')}
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-orange-500/90 hover:bg-orange-500 text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Sonraki"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
       </div>
 
-      {/* Master Details Below Carousel */}
-      {selectedMaster && (
-        <div className="bg-slate-800/60 border border-slate-700/50 rounded-lg p-4">
-          <div className="flex items-start gap-4">
-            <div className="flex-1">
-              <h3 className="text-white font-bold text-lg mb-2">{selectedMaster.name}</h3>
-
-              {/* Rating & Review Count */}
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex items-center gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-4 h-4 ${
-                        i < Math.round(selectedMaster.avg_rating ?? 0)
-                          ? 'fill-amber-400 text-amber-400'
-                          : 'text-slate-600'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <span className="text-amber-400 font-bold text-sm">
-                  {(selectedMaster.avg_rating ?? 0).toFixed(1)}
-                </span>
-                {selectedMaster.review_count && selectedMaster.review_count > 0 && (
-                  <span className="text-slate-400 text-sm">
-                    ({selectedMaster.review_count} {selectedMaster.review_count === 1 ? 'yorum' : 'yorum'})
-                  </span>
-                )}
-              </div>
-
-              {/* Contact Info */}
-              <div className="space-y-2">
-                {selectedMaster.phone && (
-                  <a href={`tel:${selectedMaster.phone}`} className="flex items-center gap-2 text-green-400 text-sm hover:text-green-300 transition-colors">
-                    <Phone className="w-4 h-4" />
-                    {selectedMaster.phone}
-                  </a>
-                )}
-                {selectedMaster.email && (
-                  <a href={`mailto:${selectedMaster.email}`} className="flex items-center gap-2 text-blue-400 text-sm hover:text-blue-300 transition-colors">
-                    <Mail className="w-4 h-4" />
-                    {selectedMaster.email}
-                  </a>
-                )}
-              </div>
-            </div>
-
-            {/* Profile Link */}
-            <Link
-              href={`/ustalar/${selectedMaster.id}`}
-              className="bg-orange-500 hover:bg-orange-400 text-white font-semibold px-4 py-2 rounded-lg transition-colors text-sm flex-shrink-0"
-            >
-              Profili Gör
-            </Link>
-          </div>
-        </div>
-      )}
+      {/* Right Arrow Button */}
+      <button
+        onClick={() => scroll('right')}
+        className="flex-shrink-0 p-3 rounded-full bg-orange-500 hover:bg-orange-400 text-white shadow-lg transition-colors text-2xl font-bold leading-none h-12 w-12 flex items-center justify-center"
+        title="Sonraki"
+      >
+        &gt;
+      </button>
     </div>
   )
 }
@@ -156,22 +92,14 @@ export default function MastersCarousel({ masters, t }: MastersCarouselProps) {
 function MasterCardItem({
   master,
   t,
-  isSelected,
-  onSelect,
 }: {
   master: MasterProfile
   t: Translations
-  isSelected: boolean
-  onSelect: (master: MasterProfile) => void
 }) {
   return (
-    <button
-      onClick={() => onSelect(master)}
-      className={`flex-shrink-0 w-80 h-80 rounded-2xl border-2 transition-all p-6 flex flex-col items-center justify-between shadow-lg ${
-        isSelected
-          ? 'border-orange-500/80 bg-gradient-to-br from-slate-800/90 to-slate-800/70 shadow-orange-500/30'
-          : 'border-slate-700/60 bg-gradient-to-br from-slate-800/70 to-slate-800/40 hover:border-orange-500/50 hover:from-slate-800/80 hover:to-slate-800/60 hover:shadow-orange-500/20'
-      }`}
+    <Link
+      href={`/ustalar/${master.id}`}
+      className="flex-shrink-0 w-80 h-80 rounded-2xl border border-slate-700/60 bg-gradient-to-br from-slate-800/70 to-slate-800/40 hover:border-orange-500/50 hover:from-slate-800/90 hover:to-slate-800/60 transition-all p-6 flex flex-col items-center justify-between shadow-lg hover:shadow-orange-500/20"
     >
       {/* Avatar - Centered */}
       <div className="w-24 h-24 rounded-full bg-gradient-to-br from-orange-500/30 to-orange-600/20 border border-orange-500/40 overflow-hidden flex items-center justify-center flex-shrink-0">
@@ -213,6 +141,32 @@ function MasterCardItem({
           {master.categories.slice(0, 2).join(', ')}
         </p>
       )}
-    </button>
+
+      {/* Rating Info */}
+      <div className="w-full mt-3 pt-3 border-t border-slate-700/50">
+        <div className="flex items-center justify-center gap-2">
+          <div className="flex gap-0.5">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                className={`w-3 h-3 ${
+                  i < Math.round(master.avg_rating ?? 0)
+                    ? 'fill-amber-400 text-amber-400'
+                    : 'text-slate-600'
+                }`}
+              />
+            ))}
+          </div>
+          <span className="text-amber-400 font-bold text-xs">
+            {(master.avg_rating ?? 0).toFixed(1)}
+          </span>
+          {master.review_count && master.review_count > 0 && (
+            <span className="text-slate-500 text-xs ml-1">
+              ({master.review_count})
+            </span>
+          )}
+        </div>
+      </div>
+    </Link>
   )
 }
